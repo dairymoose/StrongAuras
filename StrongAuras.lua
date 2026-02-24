@@ -111,6 +111,7 @@ local function OnAuraUpdate(updateTrigger)
 				auraFrames[auraName].frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 				auraFrames[auraName].frame:SetWidth(30)
 				auraFrames[auraName].frame:SetHeight(30)
+				auraFrames[auraName].frame:SetFrameStrata("DIALOG")
 			end
 			
 			if auraFrames[auraName].frame ~= nil then
@@ -123,8 +124,6 @@ local function OnAuraUpdate(updateTrigger)
 						--auraFrames[auraName].frame.progress = CreateFrame("StatusBar", a.."Progress", UIParent)
 						auraFrames[auraName].frame.progress:SetPoint("CENTER", auraFrames[auraName].frame, "CENTER", 0, 0)
 						--auraFrames[auraName].frame.progress:SetPoint("CENTER")
-						auraFrames[auraName].frame.progress:SetWidth(100)
-						auraFrames[auraName].frame.progress:SetHeight(20)
 						auraFrames[auraName].frame.progress:SetMinMaxValues(0, 100)
 						auraFrames[auraName].frame.progress:SetValue(50)
 						--"Interface\\AddOns\\pfUI\\img\\bar"
@@ -152,6 +151,9 @@ local function OnAuraUpdate(updateTrigger)
 									if not c then
 										return
 									end
+								
+									auraFrames[auraName].frame.progress:SetWidth(tonumber(StrongAuras_GS["aura"][auraName]["w"]))
+									auraFrames[auraName].frame.progress:SetHeight(tonumber(StrongAuras_GS["aura"][auraName]["h"]))
 								
 									local progressColorFn = loadstring(StrongAuras_GS["aura"][auraName]["progressColorFn"])
 									local c1,c2,c3,c4 = progressColorFn()
@@ -181,8 +183,9 @@ local function OnAuraUpdate(updateTrigger)
 										local margin = 2
 										local sparkColorFn = loadstring(StrongAuras_GS["aura"][auraName]["sparkColorFn"])
 										local sc1,sc2,sc3,sc4 = sparkColorFn()
+										auraFrames[auraName].frame.progress.spark:SetHeight(tonumber(StrongAuras_GS["aura"][auraName]["h"]))
 										auraFrames[auraName].frame.progress.spark.texture:SetVertexColor(sc1,sc2,sc3,sc4)
-										auraFrames[auraName].frame.progress.spark:SetPoint("LEFT", auraFrames[auraName].frame.progress, "LEFT", 100*pct - margin, 0)
+										auraFrames[auraName].frame.progress.spark:SetPoint("LEFT", auraFrames[auraName].frame.progress, "LEFT", tonumber(StrongAuras_GS["aura"][auraName]["w"])*pct - margin, 0)
 										if StrongAuras_GS["aura"][auraName]["showSpark"] then
 											auraFrames[auraName].frame.progress.spark:Show()
 										else
@@ -235,8 +238,6 @@ local function OnAuraUpdate(updateTrigger)
 				elseif frameType == "icon" then
 					if auraFrames[auraName].frame.icon == nil then
 						auraFrames[auraName].frame.icon = CreateFrame("Frame", a.."Icon", auraFrames[auraName].frame)
-						auraFrames[auraName].frame.icon:SetWidth(50)
-						auraFrames[auraName].frame.icon:SetHeight(50)
 						auraFrames[auraName].frame.icon:SetPoint("CENTER", auraFrames[auraName].frame, "CENTER", 0, 0)
 						auraFrames[auraName].frame.icon.texture = auraFrames[auraName].frame.icon:CreateTexture(nil, "BACKGROUND")
 						auraFrames[auraName].frame.icon.updater = function()
@@ -263,14 +264,14 @@ local function OnAuraUpdate(updateTrigger)
 												insets = { left = 0, right = 0, top = 0, bottom = 0 }});
 											auraFrames[auraName].frame.icon:SetBackdropColor(1, 1, 1, 1);
 											auraFrames[auraName].frame.icon:SetBackdropBorderColor(1, 1, 1, 1);
-											auraFrames[auraName].frame.icon:SetWidth(50+2.5*math.sin(10*GetTime()))
-											auraFrames[auraName].frame.icon:SetHeight(50+2.5*math.sin(10*GetTime()))
+											auraFrames[auraName].frame.icon:SetWidth(StrongAuras_GS["aura"][auraName]["w"]+2.5*math.sin(10*GetTime()))
+											auraFrames[auraName].frame.icon:SetHeight(StrongAuras_GS["aura"][auraName]["h"]+2.5*math.sin(10*GetTime()))
 										else
 											auraFrames[auraName].frame.icon:SetBackdrop({});
 											auraFrames[auraName].frame.icon:SetBackdropColor(1, 1, 1, 1);
 											auraFrames[auraName].frame.icon:SetBackdropBorderColor(1, 1, 1, 1);
-											auraFrames[auraName].frame.icon:SetWidth(50)
-											auraFrames[auraName].frame.icon:SetHeight(50)
+											auraFrames[auraName].frame.icon:SetWidth(tonumber(StrongAuras_GS["aura"][auraName]["w"]))
+											auraFrames[auraName].frame.icon:SetHeight(tonumber(StrongAuras_GS["aura"][auraName]["h"]))
 										end
 										
 										
@@ -328,12 +329,24 @@ function StrongAuras_OnEvent()
 	if event == "ADDON_LOADED" then
 		if (string.lower(arg1) == "strongauras") then
 			print("StrongAuras strongly loaded")
+			if StrongAuras_GS ~= nil and StrongAuras_GS["aura"] ~= nil then
+			for a in StrongAuras_GS["aura"] do
+				if StrongAuras_GS["aura"][a]["onload"] ~= nil then
+					local onloadFn = loadstring(StrongAuras_GS["aura"][a]["onload"])
+					onloadFn()
+				end
+			end
+		end
 			OnAuraUpdate("frame")
 		end
 	elseif event == "UNIT_MANA" then
 		if StrongAuras_GS ~= nil and StrongAuras_GS["aura"] ~= nil then
 			for a in StrongAuras_GS["aura"] do
-				if StrongAuras_GS["aura"][a]["trigger"] ~= nil and StrongAuras_GS["aura"][a]["trigger"] == "mana" then
+				if StrongAuras_GS["aura"][a]["event_unitMana"] ~= nil and StrongAuras_GS["aura"][a]["event_unitMana"] ~= "nil" then
+					local unitManaFn = loadstring(StrongAuras_GS["aura"][a]["event_unitMana"])
+					unitManaFn()
+				end
+				if arg1=="player" and StrongAuras_GS["aura"][a]["trigger"] ~= nil and StrongAuras_GS["aura"][a]["trigger"] == "mana" then
 					OnAuraUpdate("mana");
 				end
 			end
@@ -346,6 +359,8 @@ SLASH_STRONGAURAS2 = "/strongauras"
 
 base_keys={}
 base_keys["type"]=1
+base_keys["event_unitMana"]=1
+base_keys["onload"]=1
 
 local function printAllAuras()
 	print("All auras:")
@@ -358,7 +373,11 @@ end
 
 local function auraAssign(auraName, key, value)
 	print(auraName..": set "..key.."="..value)
-	StrongAuras_GS["aura"][auraName][key] = value
+	if value=="nil" then
+		StrongAuras_GS["aura"][auraName][key] = nil
+	else
+		StrongAuras_GS["aura"][auraName][key] = value
+	end
 end
 
 local function auraAssignIfNil(auraName, key, value)
@@ -373,6 +392,8 @@ local function assignDefaultValues(auraName, auraType)
 	auraAssignIfNil(auraName, "y", 0)
 	auraAssignIfNil(auraName, "trigger", "frame")
 	if auraType == "progress" then
+		auraAssignIfNil(auraName, "w", "100")
+		auraAssignIfNil(auraName, "h", "20")
 		auraAssignIfNil(auraName, "backdrop", 'Interface/Tooltips/UI-Tooltip-Background')
 		auraAssignIfNil(auraName, "backdropOpacity", 1.0)
 		auraAssignIfNil(auraName, "progressColorFn", "return 0,1,0,1")
@@ -388,6 +409,8 @@ local function assignDefaultValues(auraName, auraType)
 		auraAssignIfNil(auraName, "textfn", 'return UnitName("target")')
 	end
 	if auraType == "icon" then
+		auraAssignIfNil(auraName, "w", 50)
+		auraAssignIfNil(auraName, "h", 50)
 		auraAssignIfNil(auraName, "colorfn", 'return 1,1,1,1')
 		auraAssignIfNil(auraName, "glowfn", 'return false')
 		auraAssignIfNil(auraName, "texturefn", 'return "Interface/Icons/Ability_Warrior_BattleShout"')
