@@ -126,6 +126,11 @@ local function OnAuraUpdate(updateTrigger)
 				
 				hideAllFrames(auraName)
 				
+				if StrongAuras_GS["aura"][auraName]["onload"] ~= nil then
+					local onloadFn = loadstring(StrongAuras_GS["aura"][auraName]["onload"])
+					onloadFn()
+				end
+				
 				if frameType == "progress" then
 					if auraFrames[auraName].frame.progress == nil then
 						auraFrames[auraName].frame.progress = CreateFrame("StatusBar", a.."Progress", auraFrames[auraName].frame)
@@ -228,11 +233,10 @@ local function OnAuraUpdate(updateTrigger)
 										return 
 									end
 									
-									local fn = loadstring(StrongAuras_GS["aura"][auraName]["textfn"])
-									--local fn = loadstring(textfn)
-									if fn ~= nil then
-										local resolved = fn()
-										auraFrames[auraName].frame.text:SetText(resolved)
+									local textFn = loadstring(StrongAuras_GS["aura"][auraName]["textfn"])
+									if textFn ~= nil then
+										local resolvedTextFn = textFn()
+										auraFrames[auraName].frame.text:SetText(resolvedTextFn)
 									end
 								end
 					
@@ -487,10 +491,11 @@ local function SpawnEditFrame(auraName)
 		editFrame.scrollchild:SetHeight(textHeight)
 		editFrame.scroll:SetScrollChild(editFrame.scrollchild)
 		
+		local scrollableAreaScale = 4
 		editFrame.text = CreateFrame("EditBox", auraName.."EditFrameEditbox", editFrame.scrollchild)
 		editFrame.text:SetPoint("TOPLEFT", editFrame.scrollchild, "TOPLEFT", 0, 0)
 		editFrame.text:SetWidth(textWidth)
-		editFrame.text:SetHeight(textHeight*10)
+		editFrame.text:SetHeight(textHeight*scrollableAreaScale)
 		editFrame.text:SetMultiLine(true)
 		editFrame.text:SetFont("Fonts\\FRIZQT__.TTF", 12)
 		editFrame.text:SetJustifyH("LEFT")
@@ -572,9 +577,26 @@ local function SpawnEditFrame(auraName)
 	for k,v in StrongAuras_GS["aura"][auraName] do
 		editText = editText..k.."="..v.."\n"
 	end
+	editText = editText.."\n"
 	editFrame.text:SetText(editText)
 	editFrame:Show()
 	--editFrame.cancel:RegisterForClicks("AnyDown", "AnyUp")
+end
+
+local function printPropertiesForAura(auraName)
+	print("All properties for aura: "..auraName)
+	local indent = "    "
+	for k,v in StrongAuras_GS["aura"][auraName] do
+		print(indent..k.."="..v)
+	end
+end
+
+local function editExistingAura(auraName)
+	if StrongAuras_GS["aura"][auraName] == nil then
+		print("No aura exists by the name of "..auraName)
+	else
+		SpawnEditFrame(auraName)
+	end
 end
 
 local function ChatHandler(msg)
@@ -650,22 +672,15 @@ local function ChatHandler(msg)
 					end
 				else
 					if key == "edit" then
-						if StrongAuras_GS["aura"][auraName] == nil then
-							print("No aura exists by the name of "..auraName)
-						else
-							SpawnEditFrame(auraName)
-						end
+						editExistingAura(auraName)
 					elseif key ~= nil and StrongAuras_GS["aura"][auraName][key] ~= nil then
 						print(key.."="..StrongAuras_GS["aura"][auraName][key])
 					end
 				end
 			else
 				if StrongAuras_GS["aura"][auraName] ~= nil then
-					print("All properties for aura: "..auraName)
-					local indent = "    "
-					for k,v in StrongAuras_GS["aura"][auraName] do
-						print(indent..k.."="..v)
-					end
+					--printPropertiesForAura(auraName)
+					editExistingAura(auraName)
 				else
 					print("No such aura exists named "..auraName)
 				end
