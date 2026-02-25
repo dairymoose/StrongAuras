@@ -59,10 +59,18 @@ end
 
 function BuffDuration(name)
 	local buffId=GetSpellIdForName(name)
+	local wantedTexture = 0
 	for i=1,16 do
 		local a,b,c=UnitBuff("player", i)
 		if c == buffId then
-			return GetPlayerBuffTimeLeft(i)
+			wantedTexture = a
+		end
+	end
+	for i=1,16 do
+		local a,b=GetPlayerBuff(i)
+		texture = GetPlayerBuffTexture(a)
+		if (wantedTexture == texture) then
+			return GetPlayerBuffTimeLeft(a)
 		end
 	end
 	return 0
@@ -291,7 +299,7 @@ local function OnAuraUpdate(updateTrigger)
 				--end frame types
 				
 				if triggerType ~= "frame" and updateTrigger=="frame" then
-					auraFrames[auraName].frame:SetScript("OnUpdate", function() end)
+					auraFrames[auraName].frame:SetScript("OnUpdate", nil)
 				else
 					if updateTrigger~="frame" and triggerType == updateTrigger then
 						if frameType == "progress" then
@@ -342,7 +350,7 @@ function StrongAuras_OnEvent()
 	elseif event == "UNIT_MANA" then
 		if StrongAuras_GS ~= nil and StrongAuras_GS["aura"] ~= nil then
 			for a in StrongAuras_GS["aura"] do
-				if StrongAuras_GS["aura"][a]["event_unitMana"] ~= nil and StrongAuras_GS["aura"][a]["event_unitMana"] ~= "nil" then
+				if arg1=="player" and StrongAuras_GS["aura"][a]["event_unitMana"] ~= nil and StrongAuras_GS["aura"][a]["event_unitMana"] ~= "nil" then
 					local unitManaFn = loadstring(StrongAuras_GS["aura"][a]["event_unitMana"])
 					unitManaFn()
 				end
@@ -386,6 +394,36 @@ local function auraAssignIfNil(auraName, key, value)
 	end
 end
 
+local function auraAssignIfDifferent(auraName, key, value)
+	if StrongAuras_GS["aura"][auraName] == nil then
+		return false
+	end
+	if StrongAuras_GS["aura"][auraName][key] ~= nil then
+		local existing = StrongAuras_GS["aura"][auraName][key]
+		if value ~= existing then
+			print('Changing old value from: '..key.."="..existing)
+			auraAssign(auraName, key, value)
+			return true
+		end
+	end
+	
+	return false
+end
+
+local function auraAssignIfDifferentOrBlank(auraName, key, value)
+	if StrongAuras_GS["aura"][auraName] == nil then
+		StrongAuras_GS["aura"][auraName] = {}
+	else
+		if StrongAuras_GS["aura"][auraName][key] == nil then
+			StrongAuras_GS["aura"][auraName][key] = value
+		else
+			auraAssignIfDifferent(auraName, key, value)
+		end
+		return true
+	end
+	return false
+end
+
 local function assignDefaultValues(auraName, auraType)
 	auraAssignIfNil(auraName, "condition", "return true")
 	auraAssignIfNil(auraName, "x", 0)
@@ -415,6 +453,128 @@ local function assignDefaultValues(auraName, auraType)
 		auraAssignIfNil(auraName, "glowfn", 'return false')
 		auraAssignIfNil(auraName, "texturefn", 'return "Interface/Icons/Ability_Warrior_BattleShout"')
 	end
+end
+
+local editFrame
+local function SpawnEditFrame(auraName)
+	if editFrame == nil then
+		editFrame = CreateFrame("Frame", auraName.."EditFrame", UIParent)
+		editFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+		editFrame:SetWidth(1300)
+		editFrame:SetHeight(700)
+		local textWidth = editFrame:GetWidth()*0.9
+		local textHeight = editFrame:GetHeight()*0.9
+		editFrame:SetFrameStrata("DIALOG")
+		
+		editFrame:SetBackdrop({bgFile = 'Interface/DialogFrame/UI-DialogBox-Background', 
+			edgeFile = "Interface/DialogFrame/UI-DialogBox-Border", 
+			tile = true, tileSize = 16, edgeSize = 16, 
+			insets = { left = 2, right = 2, top = 2, bottom = 2 }});
+		editFrame:SetBackdropColor(1, 1, 1, 1);
+		editFrame:SetBackdropBorderColor(1, 1, 1, 1);
+		
+		editFrame.scroll = CreateFrame("ScrollFrame", auraName.."EditFrameScrollframe", editFrame, "UIPanelScrollFrameTemplate")
+		editFrame.scroll:SetPoint("CENTER", editFrame, "CENTER", 0, 0)
+		--editFrame.scroll:SetPoint("TOPLEFT", editFrame, "TOPLEFT", 100, -100)
+		--editFrame.scroll:SetPoint("BOTTOMRIGHT", editFrame, -100, 100)
+		editFrame.scroll:SetWidth(textWidth)
+		editFrame.scroll:SetHeight(textHeight)
+		
+		editFrame.scrollchild = CreateFrame("Frame", auraName.."EditFrameScrollchild", editFrame.scroll)
+		--editFrame.scrollchild:SetPoint("CENTER", editFrame, "CENTER", 0, 0)
+		editFrame.scrollchild:SetPoint("TOPLEFT", editFrame, "TOPLEFT", 0, 0)
+		editFrame.scrollchild:SetWidth(textWidth)
+		editFrame.scrollchild:SetHeight(textHeight)
+		editFrame.scroll:SetScrollChild(editFrame.scrollchild)
+		
+		editFrame.text = CreateFrame("EditBox", auraName.."EditFrameEditbox", editFrame.scrollchild)
+		editFrame.text:SetPoint("TOPLEFT", editFrame.scrollchild, "TOPLEFT", 0, 0)
+		editFrame.text:SetWidth(textWidth)
+		editFrame.text:SetHeight(textHeight*10)
+		editFrame.text:SetMultiLine(true)
+		editFrame.text:SetFont("Fonts\\FRIZQT__.TTF", 12)
+		editFrame.text:SetJustifyH("LEFT")
+		--editFrame.text:SetJustifyV("CENTER")
+		editFrame.text:SetMaxLetters(99999)
+		editFrame.text:SetScript("OnEscapePressed", function(self) editFrame:Hide() end)
+		
+		--create font
+		local editTextFont = editFrame.text:CreateFontString("Status", "DIALOG", "GameFontNormal")
+		editTextFont:SetPoint("CENTER", editFrame.text, "CENTER", 0, 0)
+		editTextFont:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+		editTextFont:SetTextColor(1, 1, 1, 1)
+		
+		--create editor backdrop
+		editFrame.text.backdrop = CreateFrame("Frame", auraName.."EditBackdrop", editFrame.text)
+		editFrame.text.backdrop:SetWidth(editFrame.text:GetWidth())
+		editFrame.text.backdrop:SetHeight(editFrame.text:GetHeight())
+		local borderWidth = 5
+		editFrame.text.backdrop:SetPoint("TOPLEFT", editFrame.text, "TOPLEFT", -borderWidth, borderWidth)
+		editFrame.text.backdrop:SetPoint("BOTTOMRIGHT", editFrame.text, "BOTTOMRIGHT", borderWidth, -borderWidth)
+		editFrame.text.backdrop:SetFrameLevel(editFrame.text:GetFrameLevel())
+		
+		editFrame.text.backdrop:SetBackdrop({bgFile = 'Interface/Buttons/WHITE8x8', 
+			edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
+			edgeSize = 14, 
+			insets = { left = 0, right = 0, top = 0, bottom = 0 }});
+		editFrame.text.backdrop:SetBackdropColor(0, 0, 0, 0.0);
+		editFrame.text.backdrop:SetBackdropBorderColor(0.3, 0.3, 0.3, 1.0);
+		
+		
+		editFrame.confirm = CreateFrame("Button", auraName.."EditFrameConfirm", editFrame, "UIPanelButtonTemplate")
+		editFrame.confirm:SetPoint("BOTTOM", editFrame, "BOTTOM", -25, 10)
+		editFrame.confirm:SetWidth(50)
+		editFrame.confirm:SetHeight(20)
+		editFrame.confirm:SetText("Confirm")
+		editFrame.confirm:SetScript("OnClick", function()
+			local edited = editFrame.text:GetText()
+			local lineSplit = SplitString(edited, "\n")
+			local diffCount = 0
+			
+			if StrongAuras_GS["aura"][auraName] ~= nil then
+				StrongAuras_GS["aura"][auraName] = {}
+			end
+			
+			for no,line in lineSplit do
+				local ch = string.sub(line, 1, 2)
+				if ch ~= '--' then
+					local equalIdx = string.find(line, "=")
+					if equalIdx ~= nil then
+						local key = string.sub(line, 1, equalIdx-1)
+						local value = string.sub(line, equalIdx+1, string.len(line))
+						if key ~= nil and value ~= nil then
+							local isDifferent = auraAssignIfDifferentOrBlank(auraName, key, value)
+							
+							if isDifferent then
+								diffCount = diffCount + 1
+							end
+						end
+					end
+				end
+			end
+			OnAuraUpdate("frame");
+			editFrame:Hide()
+		end)
+		--editFrame.confirm:RegisterForClicks("AnyDown", "AnyUp")
+		
+		editFrame.cancel = CreateFrame("Button", auraName.."EditFrameCancel", editFrame, "UIPanelButtonTemplate")
+		editFrame.cancel:SetPoint("BOTTOM", editFrame, "BOTTOM", 25, 10)
+		editFrame.cancel:SetWidth(50)
+		editFrame.cancel:SetHeight(20)
+		editFrame.cancel:SetText("Cancel")
+		editFrame.cancel:SetScript("OnClick", function()
+			editFrame:Hide()
+		end)
+	end
+	
+	local editText = ""
+	editText = editText.."-- Aura "..auraName.."\n"
+	for k,v in StrongAuras_GS["aura"][auraName] do
+		editText = editText..k.."="..v.."\n"
+	end
+	editFrame.text:SetText(editText)
+	editFrame:Show()
+	--editFrame.cancel:RegisterForClicks("AnyDown", "AnyUp")
 end
 
 local function ChatHandler(msg)
@@ -489,7 +649,13 @@ local function ChatHandler(msg)
 						print("Invalid key: "..key)
 					end
 				else
-					if key ~= nil and StrongAuras_GS["aura"][auraName][key] ~= nil then
+					if key == "edit" then
+						if StrongAuras_GS["aura"][auraName] == nil then
+							print("No aura exists by the name of "..auraName)
+						else
+							SpawnEditFrame(auraName)
+						end
+					elseif key ~= nil and StrongAuras_GS["aura"][auraName][key] ~= nil then
 						print(key.."="..StrongAuras_GS["aura"][auraName][key])
 					end
 				end
