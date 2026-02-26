@@ -326,6 +326,8 @@ function StrongAuras_OnLoad()
 	this:RegisterEvent("ADDON_LOADED")
 	this:RegisterEvent("PLAYER_REGEN_ENABLED")
 	this:RegisterEvent("UNIT_MANA")
+	this:RegisterEvent("UNIT_MANA_UPDATE")
+	this:RegisterEvent("UNIT_POWER_UPDATE")
 	--this:RegisterEvent("PLAYER_REGEN_DISABLED")
 	--this:RegisterEvent("UNIT_INVENTORY_CHANGED")
 	--this:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
@@ -363,6 +365,10 @@ function StrongAuras_OnEvent()
 				end
 			end
 		end
+	elseif event == "UNIT_MANA_UPDATE" then
+		print('UNIT_MANA_UPDATE')
+	elseif event == "UNIT_POWER_UPDATE" then
+		print('UNIT_POWER_UPDATE')
 	end
 end
 
@@ -498,16 +504,17 @@ local function SpawnEditFrame(auraName)
 		editFrame.text:SetHeight(textHeight*scrollableAreaScale)
 		editFrame.text:SetMultiLine(true)
 		editFrame.text:SetFont("Fonts\\FRIZQT__.TTF", 12)
+		--editFrame.text:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\PTSansNarrow-Regular.ttf", 12)
 		editFrame.text:SetJustifyH("LEFT")
 		--editFrame.text:SetJustifyV("CENTER")
 		editFrame.text:SetMaxLetters(99999)
 		editFrame.text:SetScript("OnEscapePressed", function(self) editFrame:Hide() end)
 		
 		--create font
-		local editTextFont = editFrame.text:CreateFontString("Status", "DIALOG", "GameFontNormal")
-		editTextFont:SetPoint("CENTER", editFrame.text, "CENTER", 0, 0)
-		editTextFont:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
-		editTextFont:SetTextColor(1, 1, 1, 1)
+		--local editTextFont = editFrame.text:CreateFontString("Status", "DIALOG", "GameFontNormal")
+		--editTextFont:SetPoint("CENTER", editFrame.text, "CENTER", 0, 0)
+		--editTextFont:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+		--editTextFont:SetTextColor(1, 1, 1, 1)
 		
 		--create editor backdrop
 		editFrame.text.backdrop = CreateFrame("Frame", auraName.."EditBackdrop", editFrame.text)
@@ -599,6 +606,284 @@ local function editExistingAura(auraName)
 	end
 end
 
+local editorFrameX = 30
+local editorFrameY = 0
+local editorStartY = -30
+local editorFieldExtraY = 0
+local fieldGap = 22
+local extraLineGap = 12
+local borderWidthTextField = 5
+local editorFrames = {}
+local auraEditor
+
+local function lineCountForEditBox(editBox)
+	local lineCount = 0
+	local txt = editBox:GetText()
+	for i=1,string.len(txt) do
+		local ch = string.sub(txt, i, i)
+		if ch == '\n' then
+			lineCount = lineCount + 1
+		end
+	end
+	lineCount = lineCount + math.floor(string.len(txt)/56)
+	return lineCount
+end
+
+local function auraEditorSetPoints(auraName, parent)
+	if editorFrames[auraName] == nil then
+		editorFrames[auraName] = {}
+	end
+	local pointEditorFieldCount = 0
+	local pointEditorFieldExtraY = 0
+	for k,v in StrongAuras_GS["aura"][auraName] do
+		if editorFrames[auraName].text == nil then
+			editorFrames[auraName].text = {}
+		end
+		pointEditorFieldCount = pointEditorFieldCount + 1
+		editorFrameY = pointEditorFieldCount*-fieldGap + editorStartY + pointEditorFieldExtraY
+
+		editorFrames[auraName].text[pointEditorFieldCount]:SetPoint("TOPLEFT", parent, "TOPLEFT", editorFrameX, editorFrameY)
+		editorFrames[auraName].text[pointEditorFieldCount].label:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount], "TOPLEFT", 0, 0)
+		editorFrames[auraName].text[pointEditorFieldCount].input:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount], "TOPLEFT", 150, 0)
+		editorFrames[auraName].text[pointEditorFieldCount].input.backdrop:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount].input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
+		editorFrames[auraName].text[pointEditorFieldCount].input.backdrop:SetPoint("BOTTOMRIGHT", editorFrames[auraName].text[pointEditorFieldCount].input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
+		pointEditorFieldExtraY = pointEditorFieldExtraY + -lineCountForEditBox(editorFrames[auraName].text[pointEditorFieldCount].input)*extraLineGap
+	end
+end
+
+local uiFrame
+local function createAuraEditor(auraName, parent)
+	if editorFrames[auraName] == nil then
+		editorFrames[auraName] = {}
+		editorFrames[auraName].fieldCount = 0
+	end
+	if parent:GetChildren() ~= nil then
+		for i=1, select("#", parent:GetChildren()) do
+			local childFrame = select(i, parent:GetChildren())
+			childFrame:Hide()
+		end
+	end
+	--for a in StrongAuras_GS["aura"] do
+	--	for k,v in StrongAuras_GS["aura"][a] do
+	--		if editorFrames[a] ~= nil and editorFrames[a].text ~= nil then
+	--			local pointEditorFieldCount = 0
+	--			for i=1,editorFrames[auraName].fieldCount do
+	--				editorFrames[a].text[i]:Hide()
+	--			end
+	--		end
+	--	end
+	--end
+	editorFieldExtraY = 0
+	if editorFrames[auraName].text == nil then
+		for k,v in StrongAuras_GS["aura"][auraName] do
+			if editorFrames[auraName].text == nil then
+				editorFrames[auraName].text = {}
+			end
+			editorFrames[auraName].fieldCount = editorFrames[auraName].fieldCount + 1
+			editorFrameY = editorFrames[auraName].fieldCount*-fieldGap + editorStartY + editorFieldExtraY
+			
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount] = CreateFrame("Frame", auraName.."AuraFrame", parent)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:SetPoint("TOPLEFT", parent, "TOPLEFT", editorFrameX, editorFrameY)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:SetWidth(300)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:SetHeight(30)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:EnableMouse(false)
+			
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label = editorFrames[auraName].text[editorFrames[auraName].fieldCount]:CreateFontString("Status", "DIALOG", "GameFontNormal")
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetPoint("TOPLEFT", editorFrames[auraName].text[editorFrames[auraName].fieldCount], "TOPLEFT", 0, 0)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetTextColor(1, 1, 1, 1)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetText(k)
+			
+			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input = CreateFrame("EditBox", auraName.."EditorFrameEditbox"..editorFrames[auraName].fieldCount, editorFrames[auraName].text[editorFrames[auraName].fieldCount])
+			
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input = CreateFrame("EditBox", auraName.."EditorFrameEditbox"..editorFrames[auraName].fieldCount, parent)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetPoint("TOPLEFT", editorFrames[auraName].text[editorFrames[auraName].fieldCount], "TOPLEFT", 150, 0)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetAutoFocus(false)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetWidth(500)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetHeight(30)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetMultiLine(true)
+			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetFont("Fonts\\FRIZQT__.TTF", 12)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\FiraMono-Medium.ttf", 12)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetJustifyH("LEFT")
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetMaxLetters(99999)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:EnableMouse(true)
+			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnEnter", function(self) print('focus up') end)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetText(v)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnEscapePressed", function(self) uiFrame:Hide() end)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnTextChanged", function(self) auraEditorSetPoints(auraName, parent) end)
+			editorFieldExtraY = editorFieldExtraY + -math.floor(string.len(v)/85)*extraLineGap
+			--editorFieldExtraY = 0
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop = CreateFrame("Frame", auraName.."EditorBackdrop"..editorFrames[auraName].fieldCount, editorFrames[auraName].text[editorFrames[auraName].fieldCount].input)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetWidth(100)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetHeight(20)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetPoint("TOPLEFT", editorFrames[auraName].text[editorFrames[auraName].fieldCount].input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetPoint("BOTTOMRIGHT", editorFrames[auraName].text[editorFrames[auraName].fieldCount].input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetFrameLevel(editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:GetFrameLevel()-1)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetBackdrop({bgFile = 'Interface/Buttons/WHITE8x8', 
+				edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
+				edgeSize = 14, 
+				insets = { left = 0, right = 0, top = 0, bottom = 0 }});
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetBackdropColor(0, 0, 0, 0.0);
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetBackdropBorderColor(0.3, 0.3, 0.3, 1.0);
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:EnableMouse(false)
+		end
+	end
+	
+	for k,v in StrongAuras_GS["aura"][auraName] do
+		if editorFrames[auraName].text ~= nil then
+			for i=1,editorFrames[auraName].fieldCount do
+				editorFrames[auraName].text[i]:Show()
+				editorFrames[auraName].text[i].label:Show()
+				editorFrames[auraName].text[i].input:Show()
+			end
+		end
+	end
+	
+	uiFrame.save:SetScript("OnClick", function()
+			local pointEditorFieldCount = 0
+			local pointEditorFieldExtraY = 0
+			for k,v in StrongAuras_GS["aura"][auraName] do
+				if editorFrames[auraName].text == nil then
+					editorFrames[auraName].text = {}
+				end
+				pointEditorFieldCount = pointEditorFieldCount + 1
+				local newText = editorFrames[auraName].text[pointEditorFieldCount].input:GetText()
+				auraAssignIfDifferent(auraName, k, newText)
+				--StrongAuras_GS["aura"][auraName][k] = newText
+			end
+			OnAuraUpdate("frame");
+		end)
+end
+
+local function showUi()
+	local xValue = 60
+	local yValue = -20
+	local yGap = 21
+	local minWidth = 15
+	
+	if uiFrame == nil then
+		uiFrame = CreateFrame("Frame", "StrongAurasFrame", UIParent)
+		uiFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+		uiFrame:SetWidth(1300)
+		uiFrame:SetHeight(700)
+		uiFrame:SetFrameStrata("DIALOG")
+		uiFrame:EnableMouse(false)
+		--uiFrame:SetScript("OnEscapePressed", function(self) uiFrame:Hide() end)
+		
+		uiFrame:SetBackdrop({bgFile = 'Interface/DialogFrame/UI-DialogBox-Background', 
+			edgeFile = "Interface/DialogFrame/UI-DialogBox-Border", 
+			tile = true, tileSize = 16, edgeSize = 16, 
+			insets = { left = 2, right = 2, top = 2, bottom = 2 }});
+		uiFrame:SetBackdropColor(1, 1, 1, 1);
+		uiFrame:SetBackdropBorderColor(1, 1, 1, 1);
+		uiFrame:EnableMouse(true)
+		uiFrame:SetMovable(true)
+		uiFrame:RegisterForDrag(true)
+		uiFrame:SetScript("OnDragStart", function() uiFrame:StartMoving() end)
+		uiFrame:SetScript("OnDragStop", function() uiFrame:StopMovingOrSizing() end)
+		
+		local textWidth = uiFrame:GetWidth()*0.1
+		local textHeight = uiFrame:GetHeight()*0.99
+		uiFrame.scroll = CreateFrame("ScrollFrame", "StrongAurasFrameScrollframe1", uiFrame, "UIPanelScrollFrameTemplate")
+		uiFrame.scroll:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", 0, 0)
+		--uiFrame.scroll:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", 100, -100)
+		--uiFrame.scroll:SetPoint("BOTTOMRIGHT", uiFrame, -100, 100)
+		uiFrame.scroll:SetWidth(textWidth)
+		uiFrame.scroll:SetHeight(textHeight)
+		uiFrame.scroll:SetBackdrop({bgFile = 'Interface/DialogFrame/UI-DialogBox-Background', 
+			edgeFile = "Interface/DialogFrame/UI-DialogBox-Border", 
+			tile = true, tileSize = 16, edgeSize = 16, 
+			insets = { left = 2, right = 2, top = 2, bottom = 2 }});
+		uiFrame.scroll:SetBackdropColor(1, 1, 1, 1);
+		uiFrame.scroll:SetBackdropBorderColor(1, 1, 1, 1);
+		
+		uiFrame.scrollchild = CreateFrame("Frame", "StrongAurasFrameScrollchild1", uiFrame.scroll)
+		--uiFrame.scrollchild:SetPoint("CENTER", uiFrame, "CENTER", 0, 0)
+		uiFrame.scrollchild:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", 0, 0)
+		uiFrame.scrollchild:SetWidth(textWidth)
+		uiFrame.scrollchild:SetHeight(textHeight)
+		uiFrame.scroll:SetScrollChild(uiFrame.scrollchild)
+		
+		local textWidth2 = uiFrame:GetWidth()*0.9 - 30
+		local textHeight2 = uiFrame:GetHeight()*0.97
+		uiFrame.scroll2 = CreateFrame("ScrollFrame", "StrongAurasFrameScrollframe2", uiFrame, "UIPanelScrollFrameTemplate")
+		uiFrame.scroll2:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", textWidth + 20, 0)
+		--uiFrame.scroll:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", 100, -100)
+		--uiFrame.scroll:SetPoint("BOTTOMRIGHT", uiFrame, -100, 100)
+		uiFrame.scroll2:SetWidth(textWidth2)
+		uiFrame.scroll2:SetHeight(textHeight2)
+		uiFrame.scroll2:SetBackdrop({bgFile = 'Interface/DialogFrame/UI-DialogBox-Background', 
+			edgeFile = "Interface/DialogFrame/UI-DialogBox-Border", 
+			tile = true, tileSize = 16, edgeSize = 16, 
+			insets = { left = 2, right = 2, top = 2, bottom = 2 }});
+		uiFrame.scroll2:SetBackdropColor(1, 1, 1, 1);
+		uiFrame.scroll2:SetBackdropBorderColor(1, 1, 1, 1);
+		uiFrame.scroll2:EnableMouse(false)
+		
+		uiFrame.scrollchild2 = CreateFrame("Frame", "StrongAurasFrameScrollchild2", uiFrame.scroll2)
+		--uiFrame.scrollchild:SetPoint("CENTER", uiFrame, "CENTER", 0, 0)
+		uiFrame.scrollchild2:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", 0, 0)
+		uiFrame.scrollchild2:SetWidth(textWidth)
+		uiFrame.scrollchild2:SetHeight(textHeight)
+		uiFrame.scrollchild2:EnableMouse(true)
+		uiFrame.scroll2:SetScrollChild(uiFrame.scrollchild2)
+		
+		uiFrame.newAura = CreateFrame("Button", "NewAuraButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
+		uiFrame.newAura:SetPoint("CENTER", uiFrame.scrollchild, "TOPLEFT", xValue, yValue)
+		uiFrame.newAura:SetWidth(80)
+		uiFrame.newAura:SetHeight(20)
+		uiFrame.newAura:SetText("[New Aura]")
+		uiFrame.newAura:SetScript("OnClick", function()
+			uiFrame:Hide()
+		end)
+		
+		uiFrame.save = CreateFrame("Button", "StrongAurasFrameCancel", uiFrame, "UIPanelButtonTemplate")
+		uiFrame.save:SetPoint("BOTTOM", uiFrame, "BOTTOM", 0, 5)
+		uiFrame.save:SetWidth(50)
+		uiFrame.save:SetHeight(20)
+		uiFrame.save:SetText("Save")
+
+		uiFrame.cancel = CreateFrame("Button", "StrongAurasFrameCancel", uiFrame, "UIPanelButtonTemplate")
+		uiFrame.cancel:SetPoint("TOPRIGHT", uiFrame, "TOPRIGHT", -5, -3)
+		uiFrame.cancel:SetWidth(20)
+		uiFrame.cancel:SetHeight(20)
+		uiFrame.cancel:SetText("X")
+		uiFrame.cancel:SetScript("OnClick", function()
+			uiFrame:Hide()
+		end)
+		
+	end
+
+	if StrongAuras_GS["aura"] ~= nil then
+		if uiFrame.existingAuras == nil then
+			uiFrame.existingAuras = {}
+		end
+		local counter = 0
+		for a in StrongAuras_GS["aura"] do
+			counter = counter + 1
+			if uiFrame.existingAuras[counter] == nil then
+				local auraName = a
+				uiFrame.existingAuras[counter] = CreateFrame("Button", "Aura"..auraName.."EditButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
+				yValue = yValue - yGap
+				uiFrame.existingAuras[counter]:SetPoint("CENTER", uiFrame.scrollchild, "TOPLEFT", xValue, yValue)
+				local dynamicWidth = string.len(auraName)*6.5
+				if dynamicWidth < minWidth then
+					dynamicWidth = minWidth
+				end
+				uiFrame.existingAuras[counter]:SetWidth(dynamicWidth)
+				uiFrame.existingAuras[counter]:SetHeight(20)
+				uiFrame.existingAuras[counter]:SetText(auraName)
+				uiFrame.existingAuras[counter]:SetScript("OnClick", function()
+					createAuraEditor(auraName, uiFrame.scrollchild2)
+				end)
+			end
+		end
+	end
+
+	uiFrame:Show()
+	--uiFrame.cancel:RegisterForClicks("AnyDown", "AnyUp")
+end
+
 local function ChatHandler(msg)
 	local vars = SplitString(msg, " ")
 	for k,v in vars do
@@ -617,6 +902,8 @@ local function ChatHandler(msg)
 		print("Reset to defaults.")
 	elseif cmd == "auras" then
 		printAllAuras()
+	elseif cmd == "ui" then
+		showUi()
 	elseif cmd == "new" then
 		if vars[2] ~= nil then
 			local auraName = vars[2]
@@ -690,6 +977,7 @@ local function ChatHandler(msg)
 		end
 	else
 		print("Usage:")
+		print("/sa ui: Summon UI")
 		print("/sa auras: Show existing auras")
 		print("/sa new [name]: Create new named aura")
 		print("/sa delete [name]: Delete new named aura")
