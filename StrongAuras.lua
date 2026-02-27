@@ -380,6 +380,16 @@ base_keys["type"]=1
 base_keys["event_unitMana"]=1
 base_keys["onload"]=1
 
+local function createNewAura(auraName)
+	if StrongAuras_GS["aura"] == nil then
+		StrongAuras_GS["aura"] = {}
+	end
+	if StrongAuras_GS["aura"][auraName] == nil then
+		StrongAuras_GS["aura"][auraName] = {}
+		print("Created new aura named: "..auraName)
+	end
+end
+
 local function printAllAuras()
 	print("All auras:")
 	if StrongAuras_GS["aura"] ~= nil then
@@ -616,6 +626,8 @@ local borderWidthTextField = 5
 local editorFrames = {}
 local auraEditor
 
+local textSizeMonospace = 10
+local charsPerLine = 129
 local function lineCountForEditBox(editBox)
 	local lineCount = 0
 	local txt = editBox:GetText()
@@ -625,7 +637,7 @@ local function lineCountForEditBox(editBox)
 			lineCount = lineCount + 1
 		end
 	end
-	lineCount = lineCount + math.floor(string.len(txt)/56)
+	lineCount = lineCount + math.floor(string.len(txt)/charsPerLine)
 	return lineCount
 end
 
@@ -652,103 +664,57 @@ local function auraEditorSetPoints(auraName, parent)
 end
 
 local newAuraMakerFrame
-local function createNewAuraMakerFrame(parent)
+local function createNewAuraOfTypeWithDefaults(auraName, auraType)
+	if auraName ~= nil and string.len(auraName) > 0 then
+		if StrongAuras_GS["aura"][auraName] == nil then
+			createNewAura(auraName)
+			auraAssignIfDifferent(auraName, "type", auraType)
+			assignDefaultValues(auraName, auraType)
+			return true
+		end
+	end
+	
+	return false
+end
+
+local function hideAllChildren(parent)
 	if parent:GetChildren() ~= nil then
 		for i=1, select("#", parent:GetChildren()) do
 			local childFrame = select(i, parent:GetChildren())
 			childFrame:Hide()
 		end
 	end
-
-	local editBoxWidth = 800
-	if newAuraMakerFrame == nil then
-		local buttonY = 0
-
-		newAuraMakerFrame = CreateFrame("Frame", "NewAuraMakerFrame", parent)
-		newAuraMakerFrame:SetPoint("CENTER", parent, "CENTER", editorFrameX, editorFrameY)
-		newAuraMakerFrame:SetWidth(300)
-		newAuraMakerFrame:SetHeight(30)
-		
-		newAuraMakerFrame.label = newAuraMakerFrame:CreateFontString("Status", "DIALOG", "GameFontNormal")
-		newAuraMakerFrame.label:SetPoint("CENTER", newAuraMakerFrame, "CENTER", 0, 0)
-		newAuraMakerFrame.label:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
-		newAuraMakerFrame.label:SetTextColor(1, 1, 1, 1)
-		newAuraMakerFrame.label:SetText("Aura Type")
-		
-		buttonY = buttonY - 30
-		newAuraMakerFrame.auraname = CreateFrame("EditBox", "NewAuraMakerEditbox", parent)
-		newAuraMakerFrame.auraname:SetPoint("TOPLEFT", newAuraMakerFrame, "TOPLEFT", 150, buttonY)
-		newAuraMakerFrame.auraname:SetAutoFocus(false)
-		newAuraMakerFrame.auraname:SetWidth(editBoxWidth)
-		newAuraMakerFrame.auraname:SetHeight(30)
-		newAuraMakerFrame.auraname:SetMultiLine(true)
-		newAuraMakerFrame.auraname:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\FiraMono-Medium.ttf", 12)
-		newAuraMakerFrame.auraname:SetJustifyH("LEFT")
-		newAuraMakerFrame.auraname:SetMaxLetters(99999)
-		newAuraMakerFrame.auraname:EnableMouse(true)
-		newAuraMakerFrame.auraname:SetText(v)
-		newAuraMakerFrame.auraname:SetScript("OnEscapePressed", function(self) uiFrame:Hide() end)
-		newAuraMakerFrame.auraname.backdrop = CreateFrame("Frame", "AuraMakerNameBackdrop", newAuraMakerFrame.input)
-		newAuraMakerFrame.auraname.backdrop:SetWidth(100)
-		newAuraMakerFrame.auraname.backdrop:SetHeight(20)
-		newAuraMakerFrame.auraname.backdrop:SetPoint("TOPLEFT", newAuraMakerFrame.input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
-		newAuraMakerFrame.auraname.backdrop:SetPoint("BOTTOMRIGHT", newAuraMakerFrame.input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
-		newAuraMakerFrame.auraname.backdrop:SetFrameLevel(newAuraMakerFrame.input:GetFrameLevel()-1)
-		newAuraMakerFrame.auraname.backdrop:SetBackdrop({bgFile = 'Interface/Buttons/WHITE8x8', 
-			edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
-			edgeSize = 14, 
-			insets = { left = 0, right = 0, top = 0, bottom = 0 }});
-		newAuraMakerFrame.input.backdrop:SetBackdropColor(0, 0, 0, 0.0);
-		newAuraMakerFrame.input.backdrop:SetBackdropBorderColor(0.3, 0.3, 0.3, 1.0);
-		newAuraMakerFrame.input.backdrop:EnableMouse(false)
-		
-		buttonY = buttonY - 30
-		newAuraMakerFrame.icon = CreateFrame("Button", "IconButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
-		newAuraMakerFrame.icon:SetPoint("CENTER", uiFrame.scrollchild, "TOPLEFT", 0, buttonY)
-		newAuraMakerFrame.icon:SetWidth(80)
-		newAuraMakerFrame.icon:SetHeight(20)
-		newAuraMakerFrame.icon:SetText("Icon")
-		newAuraMakerFrame.icon:SetScript("OnClick", function()
-			uiFrame:Hide()
-		end)
-		
-		buttonY = buttonY - 30
-		newAuraMakerFrame.progress = CreateFrame("Button", "ProgressButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
-		newAuraMakerFrame.progress:SetPoint("CENTER", uiFrame.scrollchild, "TOPLEFT", 0, buttonY)
-		newAuraMakerFrame.progress:SetWidth(80)
-		newAuraMakerFrame.progress:SetHeight(20)
-		newAuraMakerFrame.progress:SetText("Progress")
-		newAuraMakerFrame.progress:SetScript("OnClick", function()
-			uiFrame:Hide()
-		end)
-		
-		buttonY = buttonY - 30
-		newAuraMakerFrame.text = CreateFrame("Button", "TextButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
-		newAuraMakerFrame.text:SetPoint("CENTER", uiFrame.scrollchild, "TOPLEFT", 0, buttonY)
-		newAuraMakerFrame.text:SetWidth(80)
-		newAuraMakerFrame.text:SetHeight(20)
-		newAuraMakerFrame.text:SetText("Text")
-		newAuraMakerFrame.text:SetScript("OnClick", function()
-			uiFrame:Hide()
-		end)
-	end
-	
-	newAuraMakerFrame:Show()
-	uiFrame.save:SetScript("OnClick", nil)
 end
 
 local uiFrame
+local function deleteAuraByName(auraName)
+	if StrongAuras_GS["aura"] == nil then
+		StrongAuras_GS["aura"] = {}
+	end
+	if StrongAuras_GS["aura"][auraName] ~= nil then
+		StrongAuras_GS["aura"][auraName] = nil
+		if uiFrame.existingAuraButtons[auraName] ~= nil then
+			uiFrame.existingAuraButtons[auraName]:Hide()
+			uiFrame.existingAuraButtons[auraName] = nil
+		end
+		print("Deleted aura named: "..auraName)
+	end
+end
+
+local deleteCounter = {}
 local function createAuraEditor(auraName, parent)
+	if StrongAuras_GS["aura"][auraName] == nil then
+		print('No such aura named '..auraName)
+		return false
+	end
+
 	if editorFrames[auraName] == nil then
 		editorFrames[auraName] = {}
 		editorFrames[auraName].fieldCount = 0
 	end
-	if parent:GetChildren() ~= nil then
-		for i=1, select("#", parent:GetChildren()) do
-			local childFrame = select(i, parent:GetChildren())
-			childFrame:Hide()
-		end
-	end
+	
+	hideAllChildren(parent)
+	
 	--for a in StrongAuras_GS["aura"] do
 	--	for k,v in StrongAuras_GS["aura"][a] do
 	--		if editorFrames[a] ~= nil and editorFrames[a].text ~= nil then
@@ -760,6 +726,7 @@ local function createAuraEditor(auraName, parent)
 	--	end
 	--end
 	editorFieldExtraY = 0
+	local editBoxWidth = 800
 	if editorFrames[auraName].text == nil then
 		for k,v in StrongAuras_GS["aura"][auraName] do
 			if editorFrames[auraName].text == nil then
@@ -785,11 +752,11 @@ local function createAuraEditor(auraName, parent)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input = CreateFrame("EditBox", auraName.."EditorFrameEditbox"..editorFrames[auraName].fieldCount, parent)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetPoint("TOPLEFT", editorFrames[auraName].text[editorFrames[auraName].fieldCount], "TOPLEFT", 150, 0)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetAutoFocus(false)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetWidth(500)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetWidth(editBoxWidth)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetHeight(30)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetMultiLine(true)
 			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetFont("Fonts\\FRIZQT__.TTF", 12)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\FiraMono-Medium.ttf", 12)
+			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\FiraMono-Medium.ttf", textSizeMonospace)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetJustifyH("LEFT")
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetMaxLetters(99999)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:EnableMouse(true)
@@ -815,13 +782,18 @@ local function createAuraEditor(auraName, parent)
 		end
 	end
 	
+	local keyCounter = 0
 	for k,v in StrongAuras_GS["aura"][auraName] do
-		if editorFrames[auraName].text ~= nil then
-			for i=1,editorFrames[auraName].fieldCount do
-				editorFrames[auraName].text[i]:Show()
-				editorFrames[auraName].text[i].label:Show()
-				editorFrames[auraName].text[i].input:Show()
-			end
+		keyCounter = keyCounter + 1
+		editorFrames[auraName].text[keyCounter].label:SetText(k)
+		editorFrames[auraName].text[keyCounter].input:SetText(v)
+	end
+	
+	if editorFrames[auraName].text ~= nil then
+		for i=1,editorFrames[auraName].fieldCount do
+			editorFrames[auraName].text[i]:Show()
+			editorFrames[auraName].text[i].label:Show()
+			editorFrames[auraName].text[i].input:Show()
 		end
 	end
 	
@@ -839,14 +811,150 @@ local function createAuraEditor(auraName, parent)
 			end
 			OnAuraUpdate("frame");
 		end)
+		
+	uiFrame.delete:SetScript("OnClick", function()
+			if deleteCounter[auraName] == nil then
+				deleteCounter[auraName] = 0
+			end
+			deleteCounter[auraName] = deleteCounter[auraName] + 1
+			if deleteCounter[auraName] >= 2 then
+				deleteCounter[auraName] = nil
+				deleteAuraByName(auraName)
+				hideAllChildren(parent)
+			end
+		end)
+	
+	return true
+end
+
+local xValue = 0
+local yValue = -20
+local yGap = 21
+local minWidth = 15
+local function refreshExistingButtons()
+	if StrongAuras_GS["aura"] ~= nil then
+		if uiFrame.existingAuraButtons == nil then
+			uiFrame.existingAuraButtons = {}
+		end
+		local counter = 0
+		for a in StrongAuras_GS["aura"] do
+			local auraName = a
+			if uiFrame.existingAuraButtons[auraName] == nil then
+				uiFrame.existingAuraButtons[auraName] = CreateFrame("Button", "Aura"..auraName.."EditButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
+				yValue = yValue - yGap
+				uiFrame.existingAuraButtons[auraName]:SetPoint("CENTER", uiFrame.scrollchild, "TOP", xValue, yValue)
+				local dynamicWidth = string.len(auraName)*7.5
+				if dynamicWidth < minWidth then
+					dynamicWidth = minWidth
+				end
+				uiFrame.existingAuraButtons[auraName]:SetWidth(dynamicWidth)
+				uiFrame.existingAuraButtons[auraName]:SetHeight(20)
+				uiFrame.existingAuraButtons[auraName]:SetText(auraName)
+				uiFrame.existingAuraButtons[auraName]:SetScript("OnClick", function()
+					if not createAuraEditor(auraName, uiFrame.scrollchild2) then
+						uiFrame.existingAuraButtons[auraName]:Hide()
+					end
+				end)
+			end
+		end
+	end
+end
+
+local function createNewAuraMakerFrame(parent)
+	hideAllChildren(parent)
+
+	if newAuraMakerFrame == nil then
+		local buttonY = 60
+
+		newAuraMakerFrame = CreateFrame("Frame", "NewAuraMakerFrame", parent)
+		newAuraMakerFrame:SetPoint("CENTER", parent, "CENTER", 0, 0)
+		newAuraMakerFrame:SetWidth(300)
+		newAuraMakerFrame:SetHeight(300)
+		
+		newAuraMakerFrame.namelabel = newAuraMakerFrame:CreateFontString("Status", "DIALOG", "GameFontNormal")
+		newAuraMakerFrame.namelabel:SetPoint("CENTER", newAuraMakerFrame, "CENTER", 0, buttonY)
+		newAuraMakerFrame.namelabel:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+		newAuraMakerFrame.namelabel:SetTextColor(1, 1, 1, 1)
+		newAuraMakerFrame.namelabel:SetText("Aura Name")
+		
+		buttonY = buttonY - 30
+		newAuraMakerFrame.auraname = CreateFrame("EditBox", "NewAuraMakerEditbox", newAuraMakerFrame)
+		newAuraMakerFrame.auraname:SetPoint("CENTER", newAuraMakerFrame, "CENTER", 0, buttonY)
+		newAuraMakerFrame.auraname:SetAutoFocus(false)
+		newAuraMakerFrame.auraname:SetWidth(500)
+		newAuraMakerFrame.auraname:SetHeight(30)
+		newAuraMakerFrame.auraname:SetMultiLine(true)
+		newAuraMakerFrame.auraname:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\FiraMono-Medium.ttf", 12)
+		newAuraMakerFrame.auraname:SetJustifyH("LEFT")
+		newAuraMakerFrame.auraname:SetMaxLetters(99999)
+		newAuraMakerFrame.auraname:EnableMouse(true)
+		newAuraMakerFrame.auraname:SetScript("OnEscapePressed", function(self) uiFrame:Hide() end)
+		newAuraMakerFrame.auraname.backdrop = CreateFrame("Frame", "AuraMakerNameBackdrop", newAuraMakerFrame.auraname)
+		newAuraMakerFrame.auraname.backdrop:SetWidth(100)
+		newAuraMakerFrame.auraname.backdrop:SetHeight(20)
+		newAuraMakerFrame.auraname.backdrop:SetPoint("TOPLEFT", newAuraMakerFrame.auraname, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
+		newAuraMakerFrame.auraname.backdrop:SetPoint("BOTTOMRIGHT", newAuraMakerFrame.auraname, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
+		newAuraMakerFrame.auraname.backdrop:SetFrameLevel(newAuraMakerFrame.auraname:GetFrameLevel()-1)
+		newAuraMakerFrame.auraname.backdrop:SetBackdrop({bgFile = 'Interface/Buttons/WHITE8x8', 
+			edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
+			edgeSize = 14, 
+			insets = { left = 0, right = 0, top = 0, bottom = 0 }});
+		newAuraMakerFrame.auraname.backdrop:SetBackdropColor(0, 0, 0, 0.0);
+		newAuraMakerFrame.auraname.backdrop:SetBackdropBorderColor(0.3, 0.3, 0.3, 1.0);
+		newAuraMakerFrame.auraname.backdrop:EnableMouse(false)
+		
+		buttonY = buttonY - 30
+		newAuraMakerFrame.typelabel = newAuraMakerFrame:CreateFontString("Status", "DIALOG", "GameFontNormal")
+		newAuraMakerFrame.typelabel:SetPoint("CENTER", newAuraMakerFrame, "CENTER", 0, buttonY)
+		newAuraMakerFrame.typelabel:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+		newAuraMakerFrame.typelabel:SetTextColor(1, 1, 1, 1)
+		newAuraMakerFrame.typelabel:SetText("Aura Type")
+		
+		buttonY = buttonY - 30
+		newAuraMakerFrame.icon = CreateFrame("Button", "IconButton", newAuraMakerFrame, "UIPanelButtonTemplate")
+		newAuraMakerFrame.icon:SetPoint("CENTER", newAuraMakerFrame, "CENTER", 0, buttonY)
+		newAuraMakerFrame.icon:SetWidth(80)
+		newAuraMakerFrame.icon:SetHeight(20)
+		newAuraMakerFrame.icon:SetText("Icon")
+		newAuraMakerFrame.icon:SetScript("OnClick", function()
+			if createNewAuraOfTypeWithDefaults(newAuraMakerFrame.auraname:GetText(), "icon") then
+				hideAllChildren(parent)
+				refreshExistingButtons()
+			end
+		end)
+		
+		buttonY = buttonY - 30
+		newAuraMakerFrame.progress = CreateFrame("Button", "ProgressButton", newAuraMakerFrame, "UIPanelButtonTemplate")
+		newAuraMakerFrame.progress:SetPoint("CENTER", newAuraMakerFrame, "CENTER", 0, buttonY)
+		newAuraMakerFrame.progress:SetWidth(80)
+		newAuraMakerFrame.progress:SetHeight(20)
+		newAuraMakerFrame.progress:SetText("Progress")
+		newAuraMakerFrame.progress:SetScript("OnClick", function()
+			if createNewAuraOfTypeWithDefaults(newAuraMakerFrame.auraname:GetText(), "progress") then
+				hideAllChildren(parent)
+				refreshExistingButtons()
+			end
+		end)
+		
+		buttonY = buttonY - 30
+		newAuraMakerFrame.text = CreateFrame("Button", "TextButton", newAuraMakerFrame, "UIPanelButtonTemplate")
+		newAuraMakerFrame.text:SetPoint("CENTER", newAuraMakerFrame, "CENTER", 0, buttonY)
+		newAuraMakerFrame.text:SetWidth(80)
+		newAuraMakerFrame.text:SetHeight(20)
+		newAuraMakerFrame.text:SetText("Text")
+		newAuraMakerFrame.text:SetScript("OnClick", function()
+			if createNewAuraOfTypeWithDefaults(newAuraMakerFrame.auraname:GetText(), "text") then
+				hideAllChildren(parent)
+				refreshExistingButtons()
+			end
+		end)
+	end
+	
+	newAuraMakerFrame:Show()
+	uiFrame.save:SetScript("OnClick", nil)
 end
 
 local function showUi()
-	local xValue = 0
-	local yValue = -20
-	local yGap = 21
-	local minWidth = 15
-	
 	if uiFrame == nil then
 		uiFrame = CreateFrame("Frame", "StrongAurasFrame", UIParent)
 		uiFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
@@ -910,13 +1018,13 @@ local function showUi()
 		uiFrame.scrollchild2 = CreateFrame("Frame", "StrongAurasFrameScrollchild2", uiFrame.scroll2)
 		--uiFrame.scrollchild:SetPoint("CENTER", uiFrame, "CENTER", 0, 0)
 		uiFrame.scrollchild2:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", 0, 0)
-		uiFrame.scrollchild2:SetWidth(textWidth)
-		uiFrame.scrollchild2:SetHeight(textHeight)
+		uiFrame.scrollchild2:SetWidth(textWidth2)
+		uiFrame.scrollchild2:SetHeight(textHeight2)
 		uiFrame.scrollchild2:EnableMouse(true)
 		uiFrame.scroll2:SetScrollChild(uiFrame.scrollchild2)
 		
 		uiFrame.newAura = CreateFrame("Button", "NewAuraButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
-		uiFrame.newAura:SetPoint("CENTER", uiFrame.scrollchild, "CENTER", xValue, yValue)
+		uiFrame.newAura:SetPoint("CENTER", uiFrame.scrollchild, "TOP", xValue, yValue)
 		uiFrame.newAura:SetWidth(80)
 		uiFrame.newAura:SetHeight(20)
 		uiFrame.newAura:SetText("[New Aura]")
@@ -929,43 +1037,26 @@ local function showUi()
 		uiFrame.save:SetWidth(50)
 		uiFrame.save:SetHeight(20)
 		uiFrame.save:SetText("Save")
+		
+		uiFrame.delete = CreateFrame("Button", "StrongAurasFrameCancel", uiFrame, "UIPanelButtonTemplate")
+		uiFrame.delete:SetPoint("BOTTOM", uiFrame, "BOTTOM", -320, 5)
+		uiFrame.delete:SetWidth(50)
+		uiFrame.delete:SetHeight(20)
+		uiFrame.delete:SetText("Delete")
 
 		uiFrame.cancel = CreateFrame("Button", "StrongAurasFrameCancel", uiFrame, "UIPanelButtonTemplate")
 		uiFrame.cancel:SetPoint("TOPRIGHT", uiFrame, "TOPRIGHT", -5, -3)
 		uiFrame.cancel:SetWidth(20)
 		uiFrame.cancel:SetHeight(20)
 		uiFrame.cancel:SetText("X")
+		uiFrame.cancel:SetFrameStrata("TOOLTIP")
 		uiFrame.cancel:SetScript("OnClick", function()
 			uiFrame:Hide()
 		end)
 		
 	end
 
-	if StrongAuras_GS["aura"] ~= nil then
-		if uiFrame.existingAuras == nil then
-			uiFrame.existingAuras = {}
-		end
-		local counter = 0
-		for a in StrongAuras_GS["aura"] do
-			counter = counter + 1
-			if uiFrame.existingAuras[counter] == nil then
-				local auraName = a
-				uiFrame.existingAuras[counter] = CreateFrame("Button", "Aura"..auraName.."EditButton", uiFrame.scrollchild, "UIPanelButtonTemplate")
-				yValue = yValue - yGap
-				uiFrame.existingAuras[counter]:SetPoint("CENTER", uiFrame.scrollchild, "CENTER", xValue, yValue)
-				local dynamicWidth = string.len(auraName)*7.5
-				if dynamicWidth < minWidth then
-					dynamicWidth = minWidth
-				end
-				uiFrame.existingAuras[counter]:SetWidth(dynamicWidth)
-				uiFrame.existingAuras[counter]:SetHeight(20)
-				uiFrame.existingAuras[counter]:SetText(auraName)
-				uiFrame.existingAuras[counter]:SetScript("OnClick", function()
-					createAuraEditor(auraName, uiFrame.scrollchild2)
-				end)
-			end
-		end
-	end
+	refreshExistingButtons()
 
 	uiFrame:Show()
 	--uiFrame.cancel:RegisterForClicks("AnyDown", "AnyUp")
@@ -994,27 +1085,15 @@ local function ChatHandler(msg)
 	elseif cmd == "new" then
 		if vars[2] ~= nil then
 			local auraName = vars[2]
-			if StrongAuras_GS["aura"] == nil then
-				StrongAuras_GS["aura"] = {}
-			end
-			if StrongAuras_GS["aura"][auraName] == nil then
-				StrongAuras_GS["aura"][auraName] = {}
-				print("Created new aura named: "..auraName)
-				print("Define aura type with command: /sa aura "..auraName.." type=text")
-				print("Define aura type with command: /sa aura "..auraName.." type=progress")
-				print("Define aura type with command: /sa aura "..auraName.." type=icon")
-			end
+			createNewAura(auraName)
+			print("Define aura type with command: /sa aura "..auraName.." type=text")
+			print("Define aura type with command: /sa aura "..auraName.." type=progress")
+			print("Define aura type with command: /sa aura "..auraName.." type=icon")
 		end
 	elseif cmd == "delete" then
 		if vars[2] ~= nil then
 			local auraName = vars[2]
-			if StrongAuras_GS["aura"] == nil then
-				StrongAuras_GS["aura"] = {}
-			end
-			if StrongAuras_GS["aura"][auraName] ~= nil then
-				StrongAuras_GS["aura"][auraName] = nil
-				print("Deleted aura named: "..auraName)
-			end
+			deleteAuraByName(auraName)
 		end
 	elseif cmd == "aura" then
 		if vars[2] ~= nil then
