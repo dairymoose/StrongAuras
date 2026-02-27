@@ -449,6 +449,7 @@ local function assignDefaultValues(auraName, auraType)
 	auraAssignIfNil(auraName, "x", 0)
 	auraAssignIfNil(auraName, "y", 0)
 	auraAssignIfNil(auraName, "trigger", "frame")
+	auraAssignIfNil(auraName, "onload", "")
 	if auraType == "progress" then
 		auraAssignIfNil(auraName, "w", "100")
 		auraAssignIfNil(auraName, "h", "20")
@@ -668,6 +669,7 @@ local function createNewAuraOfTypeWithDefaults(auraName, auraType)
 	if auraName ~= nil and string.len(auraName) > 0 then
 		if StrongAuras_GS["aura"][auraName] == nil then
 			createNewAura(auraName)
+			auraAssign(auraName, "type", auraType)
 			auraAssignIfDifferent(auraName, "type", auraType)
 			assignDefaultValues(auraName, auraType)
 			return true
@@ -693,9 +695,12 @@ local function deleteAuraByName(auraName)
 	end
 	if StrongAuras_GS["aura"][auraName] ~= nil then
 		StrongAuras_GS["aura"][auraName] = nil
-		if uiFrame.existingAuraButtons[auraName] ~= nil then
+		if uiFrame.existingAuraButtons ~= nil and uiFrame.existingAuraButtons[auraName] ~= nil then
 			uiFrame.existingAuraButtons[auraName]:Hide()
 			uiFrame.existingAuraButtons[auraName] = nil
+		end
+		if editorFrames ~= nil and editorFrames[auraName] ~= nil then
+			editorFrames[auraName] = nil
 		end
 		print("Deleted aura named: "..auraName)
 	end
@@ -785,8 +790,10 @@ local function createAuraEditor(auraName, parent)
 	local keyCounter = 0
 	for k,v in StrongAuras_GS["aura"][auraName] do
 		keyCounter = keyCounter + 1
-		editorFrames[auraName].text[keyCounter].label:SetText(k)
-		editorFrames[auraName].text[keyCounter].input:SetText(v)
+		if editorFrames[auraName] ~= nil and editorFrames[auraName].text ~= nil then
+			editorFrames[auraName].text[keyCounter].label:SetText(k)
+			editorFrames[auraName].text[keyCounter].input:SetText(v)
+		end
 	end
 	
 	if editorFrames[auraName].text ~= nil then
@@ -920,6 +927,7 @@ local function createNewAuraMakerFrame(parent)
 			if createNewAuraOfTypeWithDefaults(newAuraMakerFrame.auraname:GetText(), "icon") then
 				hideAllChildren(parent)
 				refreshExistingButtons()
+				OnAuraUpdate("frame");
 			end
 		end)
 		
@@ -933,6 +941,7 @@ local function createNewAuraMakerFrame(parent)
 			if createNewAuraOfTypeWithDefaults(newAuraMakerFrame.auraname:GetText(), "progress") then
 				hideAllChildren(parent)
 				refreshExistingButtons()
+				OnAuraUpdate("frame");
 			end
 		end)
 		
@@ -946,6 +955,7 @@ local function createNewAuraMakerFrame(parent)
 			if createNewAuraOfTypeWithDefaults(newAuraMakerFrame.auraname:GetText(), "text") then
 				hideAllChildren(parent)
 				refreshExistingButtons()
+				OnAuraUpdate("frame");
 			end
 		end)
 	end
@@ -1032,13 +1042,13 @@ local function showUi()
 			createNewAuraMakerFrame(uiFrame.scrollchild2)
 		end)
 		
-		uiFrame.save = CreateFrame("Button", "StrongAurasFrameCancel", uiFrame, "UIPanelButtonTemplate")
+		uiFrame.save = CreateFrame("Button", "StrongAurasFrameSave", uiFrame, "UIPanelButtonTemplate")
 		uiFrame.save:SetPoint("BOTTOM", uiFrame, "BOTTOM", 0, 5)
 		uiFrame.save:SetWidth(50)
 		uiFrame.save:SetHeight(20)
 		uiFrame.save:SetText("Save")
 		
-		uiFrame.delete = CreateFrame("Button", "StrongAurasFrameCancel", uiFrame, "UIPanelButtonTemplate")
+		uiFrame.delete = CreateFrame("Button", "StrongAurasFrameDelete", uiFrame, "UIPanelButtonTemplate")
 		uiFrame.delete:SetPoint("BOTTOM", uiFrame, "BOTTOM", -320, 5)
 		uiFrame.delete:SetWidth(50)
 		uiFrame.delete:SetHeight(20)
