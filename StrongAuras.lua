@@ -626,7 +626,7 @@ local editorFrameY = 0
 local editorStartY = -30
 local editorFieldExtraY = 0
 local fieldGap = 22
-local extraLineGap = 12
+local extraLineGap = 10
 local borderWidthTextField = 5
 local editorFrames = {}
 local auraEditor
@@ -636,13 +636,22 @@ local charsPerLine = 129
 local function lineCountForEditBox(editBox)
 	local lineCount = 0
 	local txt = editBox:GetText()
+	local currentRunChars = 0
 	for i=1,string.len(txt) do
 		local ch = string.sub(txt, i, i)
 		if ch == '\n' then
+			currentRunChars = 0
 			lineCount = lineCount + 1
+		else
+			currentRunChars = currentRunChars + 1
+			if currentRunChars >= charsPerLine then
+				lineCount = lineCount + 1
+				currentRunChars = 0
+			end
 		end
 	end
-	lineCount = lineCount + math.floor(string.len(txt)/charsPerLine)
+	--print('lineCount='..lineCount)
+	--lineCount = lineCount + math.floor(string.len(txt)/charsPerLine)
 	return lineCount
 end
 
@@ -825,6 +834,11 @@ local function createAuraEditor(auraName, parent)
 				--StrongAuras_GS["aura"][auraName][k] = newText
 			end
 			OnAuraUpdate("frame");
+		end)
+	
+	uiFrame.share:SetScript("OnClick", function()
+			uiFrame:Hide()
+			editExistingAura(auraName)
 		end)
 		
 	uiFrame.delete:SetScript("OnClick", function()
@@ -1056,6 +1070,12 @@ local function showUi()
 		uiFrame.save:SetWidth(50)
 		uiFrame.save:SetHeight(20)
 		uiFrame.save:SetText("Save")
+		
+		uiFrame.share = CreateFrame("Button", "StrongAurasFrameShare", uiFrame, "UIPanelButtonTemplate")
+		uiFrame.share:SetPoint("BOTTOM", uiFrame, "BOTTOM", 80, 5)
+		uiFrame.share:SetWidth(50)
+		uiFrame.share:SetHeight(20)
+		uiFrame.share:SetText("Share")
 		
 		uiFrame.delete = CreateFrame("Button", "StrongAurasFrameDelete", uiFrame, "UIPanelButtonTemplate")
 		uiFrame.delete:SetPoint("BOTTOM", uiFrame, "BOTTOM", -320, 5)
