@@ -476,6 +476,10 @@ local function assignDefaultValues(auraName, auraType)
 	end
 end
 
+local function removeNewlines(value)
+	return string.gsub(value, "[\r\n]+", " ")
+end
+
 local editFrame
 local function SpawnEditFrame(auraName)
 	if editFrame == nil then
@@ -593,7 +597,7 @@ local function SpawnEditFrame(auraName)
 	local editText = ""
 	editText = editText.."-- Aura "..auraName.."\n"
 	for k,v in StrongAuras_GS["aura"][auraName] do
-		editText = editText..k.."="..v.."\n"
+		editText = editText..k.."="..removeNewlines(v).."\n"
 	end
 	editText = editText.."\n"
 	editFrame.text:SetText(editText)
@@ -658,10 +662,13 @@ local function auraEditorSetPoints(auraName, parent)
 		editorFrames[auraName].text[pointEditorFieldCount]:SetPoint("TOPLEFT", parent, "TOPLEFT", editorFrameX, editorFrameY)
 		editorFrames[auraName].text[pointEditorFieldCount].label:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount], "TOPLEFT", 0, 0)
 		editorFrames[auraName].text[pointEditorFieldCount].input:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount], "TOPLEFT", 150, 0)
+		local extraHeight = lineCountForEditBox(editorFrames[auraName].text[pointEditorFieldCount].input)*extraLineGap
+		--editorFrames[auraName].text[pointEditorFieldCount]:SetHeight(30 + extraHeight)
 		editorFrames[auraName].text[pointEditorFieldCount].input.backdrop:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount].input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
 		editorFrames[auraName].text[pointEditorFieldCount].input.backdrop:SetPoint("BOTTOMRIGHT", editorFrames[auraName].text[pointEditorFieldCount].input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
-		pointEditorFieldExtraY = pointEditorFieldExtraY + -lineCountForEditBox(editorFrames[auraName].text[pointEditorFieldCount].input)*extraLineGap
+		pointEditorFieldExtraY = pointEditorFieldExtraY + -extraHeight
 	end
+	parent:GetParent():UpdateScrollChildRect()
 end
 
 local newAuraMakerFrame
@@ -768,6 +775,7 @@ local function createAuraEditor(auraName, parent)
 			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnEnter", function(self) print('focus up') end)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetText(v)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnEscapePressed", function(self) uiFrame:Hide() end)
+			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnTabPressed", function(self) uiFrame:Hide() end)
 			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnTextChanged", function(self) auraEditorSetPoints(auraName, parent) end)
 			editorFieldExtraY = editorFieldExtraY + -math.floor(string.len(v)/85)*extraLineGap
 			--editorFieldExtraY = 0
@@ -864,6 +872,7 @@ local function refreshExistingButtons()
 				end)
 			end
 		end
+		uiFrame.scroll:UpdateScrollChildRect()
 	end
 end
 
