@@ -106,6 +106,21 @@ function MissingDebuff(unit, name)
 	return not HasDebuff(unit, name)
 end
 
+function applyCommon(auraName, frame)
+	local scale = StrongAuras_GS["aura"][auraName]["scale"]
+	if scale ~= nil then
+		frame:GetParent():SetScale(scale)
+	else
+		frame:GetParent():SetScale(1.0)
+	end
+	local frame_level = StrongAuras_GS["aura"][auraName]["framelevel"]
+	if frame_level ~= nil then
+		frame:GetParent():SetFrameLevel(frame_level)
+	else
+		frame:GetParent():SetFrameLevel(0)
+	end
+end
+
 local glow = "Interface\\AddOns\\StrongAuras\\img\\glow"
 local function OnAuraUpdate(updateTrigger)
 	for a in StrongAuras_GS["aura"] do
@@ -172,7 +187,7 @@ local function OnAuraUpdate(updateTrigger)
 									local c1,c2,c3,c4 = progressColorFn()
 									auraFrames[auraName].frame.progress:SetStatusBarColor(c1,c2,c3,c4)
 									auraFrames[auraName].frame.progress.backdrop:SetBackdrop({bgFile = StrongAuras_GS["aura"][auraName]["backdrop"], 
-												edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
+												edgeFile = StrongAuras_GS["aura"][auraName]["backdropBorder"] or "Interface/Tooltips/UI-Tooltip-Border", 
 												tile = true, tileSize = 16, edgeSize = 16, 
 												insets = { left = 2, right = 2, top = 2, bottom = 2 }});
 									auraFrames[auraName].frame.progress.backdrop:SetBackdropColor(1, 1, 1, StrongAuras_GS["aura"][auraName]["backdropOpacity"]);
@@ -181,6 +196,9 @@ local function OnAuraUpdate(updateTrigger)
 									local minFn = loadstring(StrongAuras_GS["aura"][auraName]["minfn"])
 									local maxFn = loadstring(StrongAuras_GS["aura"][auraName]["maxfn"])
 									local valueFn = loadstring(StrongAuras_GS["aura"][auraName]["valuefn"])
+									
+									applyCommon(auraName, auraFrames[auraName].frame.progress)
+									
 									if minFn ~= nil and maxFn ~= nil and valueFn ~= nil then
 										local resolvedMin = minFn()
 										local resolvedMax = maxFn()
@@ -199,7 +217,7 @@ local function OnAuraUpdate(updateTrigger)
 										auraFrames[auraName].frame.progress.spark:SetHeight(tonumber(StrongAuras_GS["aura"][auraName]["h"]))
 										auraFrames[auraName].frame.progress.spark.texture:SetVertexColor(sc1,sc2,sc3,sc4)
 										auraFrames[auraName].frame.progress.spark:SetPoint("LEFT", auraFrames[auraName].frame.progress, "LEFT", tonumber(StrongAuras_GS["aura"][auraName]["w"])*pct - margin, 0)
-										if StrongAuras_GS["aura"][auraName]["showSpark"] then
+										if StrongAuras_GS["aura"][auraName]["showSpark"]=="true" then
 											auraFrames[auraName].frame.progress.spark:Show()
 										else
 											auraFrames[auraName].frame.progress.spark:Hide()
@@ -225,7 +243,11 @@ local function OnAuraUpdate(updateTrigger)
 					if auraFrames[auraName].frame.text == nil then
 						auraFrames[auraName].frame.text = auraFrames[auraName].frame:CreateFontString("Status", "DIALOG", "GameFontNormal")
 						auraFrames[auraName].frame.text:SetPoint("CENTER", auraFrames[auraName].frame, "CENTER", 0, 0)
-						auraFrames[auraName].frame.text:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+						local fz = StrongAuras_GS["aura"][auraName]["fontsize"]
+						if fz ~= nil then
+							fz = tonumber(fz)
+						end
+						auraFrames[auraName].frame.text:SetFont(STANDARD_TEXT_FONT, fz or 12, "OUTLINE")
 						auraFrames[auraName].frame.text:SetTextColor(1, 1, 1, 1)
 						auraFrames[auraName].frame.text.updater = function()
 									local c = conditionLogic(auraName, auraFrames[auraName].frame.text)
@@ -233,10 +255,14 @@ local function OnAuraUpdate(updateTrigger)
 										return 
 									end
 									
-									local textFn = loadstring(StrongAuras_GS["aura"][auraName]["textfn"])
-									if textFn ~= nil then
-										local resolvedTextFn = textFn()
-										auraFrames[auraName].frame.text:SetText(resolvedTextFn)
+									applyCommon(auraName, auraFrames[auraName].frame.text)
+									
+									if StrongAuras_GS["aura"][auraName]["textfn"] ~= nil then
+										local textFn = loadstring(StrongAuras_GS["aura"][auraName]["textfn"])
+										if textFn ~= nil then
+											local resolvedTextFn = textFn()
+											auraFrames[auraName].frame.text:SetText(resolvedTextFn)
+										end
 									end
 								end
 					
@@ -268,6 +294,8 @@ local function OnAuraUpdate(updateTrigger)
 										auraFrames[auraName].frame.icon.texture:SetTexture(resolved)
 										auraFrames[auraName].frame.icon.texture:SetVertexColor(c1, c2, c3, c4)
 										auraFrames[auraName].frame.icon.texture:SetAllPoints()
+										
+										applyCommon(auraName, auraFrames[auraName].frame.icon)
 										
 										if resolvedGlow then
 											auraFrames[auraName].frame.icon:SetBackdrop({
@@ -450,10 +478,13 @@ local function assignDefaultValues(auraName, auraType)
 	auraAssignIfNil(auraName, "y", 0)
 	auraAssignIfNil(auraName, "trigger", "frame")
 	auraAssignIfNil(auraName, "onload", "")
+	auraAssignIfNil(auraName, "scale", "1")
+	auraAssignIfNil(auraName, "framelevel", "1")
 	if auraType == "progress" then
 		auraAssignIfNil(auraName, "w", "100")
 		auraAssignIfNil(auraName, "h", "20")
 		auraAssignIfNil(auraName, "backdrop", 'Interface/Tooltips/UI-Tooltip-Background')
+		auraAssignIfNil(auraName, "backdropBorder", 'Interface/Tooltips/UI-Tooltip-Border')
 		auraAssignIfNil(auraName, "backdropOpacity", 1.0)
 		auraAssignIfNil(auraName, "progressColorFn", "return 0,1,0,1")
 		auraAssignIfNil(auraName, "sparkColorFn", "return 1,1,1,1")
@@ -466,6 +497,7 @@ local function assignDefaultValues(auraName, auraType)
 		auraAssignIfNil(auraName, "x", 0)
 		auraAssignIfNil(auraName, "y", 0)
 		auraAssignIfNil(auraName, "textfn", 'return UnitName("target")')
+		auraAssignIfNil(auraName, "fontsize", '12')
 	end
 	if auraType == "icon" then
 		auraAssignIfNil(auraName, "w", 50)
@@ -668,14 +700,16 @@ local function auraEditorSetPoints(auraName, parent)
 		pointEditorFieldCount = pointEditorFieldCount + 1
 		editorFrameY = pointEditorFieldCount*-fieldGap + editorStartY + pointEditorFieldExtraY
 
-		editorFrames[auraName].text[pointEditorFieldCount]:SetPoint("TOPLEFT", parent, "TOPLEFT", editorFrameX, editorFrameY)
-		editorFrames[auraName].text[pointEditorFieldCount].label:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount], "TOPLEFT", 0, 0)
-		editorFrames[auraName].text[pointEditorFieldCount].input:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount], "TOPLEFT", 150, 0)
-		local extraHeight = lineCountForEditBox(editorFrames[auraName].text[pointEditorFieldCount].input)*extraLineGap
-		--editorFrames[auraName].text[pointEditorFieldCount]:SetHeight(30 + extraHeight)
-		editorFrames[auraName].text[pointEditorFieldCount].input.backdrop:SetPoint("TOPLEFT", editorFrames[auraName].text[pointEditorFieldCount].input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
-		editorFrames[auraName].text[pointEditorFieldCount].input.backdrop:SetPoint("BOTTOMRIGHT", editorFrames[auraName].text[pointEditorFieldCount].input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
-		pointEditorFieldExtraY = pointEditorFieldExtraY + -extraHeight
+		if editorFrames[auraName].text[k] ~= nil then
+			editorFrames[auraName].text[k]:SetPoint("TOPLEFT", parent, "TOPLEFT", editorFrameX, editorFrameY)
+			editorFrames[auraName].text[k].label:SetPoint("TOPLEFT", editorFrames[auraName].text[k], "TOPLEFT", 0, 0)
+			editorFrames[auraName].text[k].input:SetPoint("TOPLEFT", editorFrames[auraName].text[k], "TOPLEFT", 150, 0)
+			local extraHeight = lineCountForEditBox(editorFrames[auraName].text[k].input)*extraLineGap
+			--editorFrames[auraName].text[pointEditorFieldCount]:SetHeight(30 + extraHeight)
+			editorFrames[auraName].text[k].input.backdrop:SetPoint("TOPLEFT", editorFrames[auraName].text[k].input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
+			editorFrames[auraName].text[k].input.backdrop:SetPoint("BOTTOMRIGHT", editorFrames[auraName].text[k].input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
+			pointEditorFieldExtraY = pointEditorFieldExtraY + -extraHeight
+		end
 	end
 	parent:GetParent():UpdateScrollChildRect()
 end
@@ -731,7 +765,7 @@ local function createAuraEditor(auraName, parent)
 
 	if editorFrames[auraName] == nil then
 		editorFrames[auraName] = {}
-		editorFrames[auraName].fieldCount = 0
+		k = 0
 	end
 	
 	hideAllChildren(parent)
@@ -740,7 +774,7 @@ local function createAuraEditor(auraName, parent)
 	--	for k,v in StrongAuras_GS["aura"][a] do
 	--		if editorFrames[a] ~= nil and editorFrames[a].text ~= nil then
 	--			local pointEditorFieldCount = 0
-	--			for i=1,editorFrames[auraName].fieldCount do
+	--			for i=1,k do
 	--				editorFrames[a].text[i]:Hide()
 	--			end
 	--		end
@@ -748,59 +782,76 @@ local function createAuraEditor(auraName, parent)
 	--end
 	editorFieldExtraY = 0
 	local editBoxWidth = 800
+	
 	if editorFrames[auraName].text == nil then
-		for k,v in StrongAuras_GS["aura"][auraName] do
-			if editorFrames[auraName].text == nil then
-				editorFrames[auraName].text = {}
-			end
+		editorFrames[auraName].text = {}
+		editorFrames[auraName].fieldCount = 0
+	end
+	
+	if editorFrames[auraName].text.title == nil then
+		editorFrames[auraName].text.title = CreateFrame("Frame", auraName.."AuraFrameTitle", parent)
+		editorFrames[auraName].text.title:SetPoint("CENTER", parent, "TOP", 0, -20)
+		editorFrames[auraName].text.title:SetWidth(300)
+		editorFrames[auraName].text.title:SetHeight(30)
+		editorFrames[auraName].text.title:EnableMouse(false)
+		
+		editorFrames[auraName].text.title.label = editorFrames[auraName].text.title:CreateFontString("Status", "DIALOG", "GameFontNormal")
+		editorFrames[auraName].text.title.label:SetPoint("CENTER", editorFrames[auraName].text.title, "CENTER", 0, 0)
+		editorFrames[auraName].text.title.label:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+		editorFrames[auraName].text.title.label:SetTextColor(1, 1, 1, 1)
+		editorFrames[auraName].text.title.label:SetText(auraName)
+	end
+	
+	for k,v in StrongAuras_GS["aura"][auraName] do
+		if editorFrames[auraName].text[k] == nil then
 			editorFrames[auraName].fieldCount = editorFrames[auraName].fieldCount + 1
 			editorFrameY = editorFrames[auraName].fieldCount*-fieldGap + editorStartY + editorFieldExtraY
 			
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount] = CreateFrame("Frame", auraName.."AuraFrame", parent)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:SetPoint("TOPLEFT", parent, "TOPLEFT", editorFrameX, editorFrameY)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:SetWidth(300)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:SetHeight(30)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount]:EnableMouse(false)
+			editorFrames[auraName].text[k] = CreateFrame("Frame", auraName.."AuraFrame", parent)
+			editorFrames[auraName].text[k]:SetPoint("TOPLEFT", parent, "TOPLEFT", editorFrameX, editorFrameY)
+			editorFrames[auraName].text[k]:SetWidth(300)
+			editorFrames[auraName].text[k]:SetHeight(30)
+			editorFrames[auraName].text[k]:EnableMouse(false)
 			
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label = editorFrames[auraName].text[editorFrames[auraName].fieldCount]:CreateFontString("Status", "DIALOG", "GameFontNormal")
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetPoint("TOPLEFT", editorFrames[auraName].text[editorFrames[auraName].fieldCount], "TOPLEFT", 0, 0)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetTextColor(1, 1, 1, 1)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].label:SetText(k)
+			editorFrames[auraName].text[k].label = editorFrames[auraName].text[k]:CreateFontString("Status", "DIALOG", "GameFontNormal")
+			editorFrames[auraName].text[k].label:SetPoint("TOPLEFT", editorFrames[auraName].text[k], "TOPLEFT", 0, 0)
+			editorFrames[auraName].text[k].label:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+			editorFrames[auraName].text[k].label:SetTextColor(1, 1, 1, 1)
+			editorFrames[auraName].text[k].label:SetText(k)
 			
-			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input = CreateFrame("EditBox", auraName.."EditorFrameEditbox"..editorFrames[auraName].fieldCount, editorFrames[auraName].text[editorFrames[auraName].fieldCount])
+			--editorFrames[auraName].text[k].input = CreateFrame("EditBox", auraName.."EditorFrameEditbox"..k, editorFrames[auraName].text[k])
 			
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input = CreateFrame("EditBox", auraName.."EditorFrameEditbox"..editorFrames[auraName].fieldCount, parent)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetPoint("TOPLEFT", editorFrames[auraName].text[editorFrames[auraName].fieldCount], "TOPLEFT", 150, 0)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetAutoFocus(false)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetWidth(editBoxWidth)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetHeight(30)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetMultiLine(true)
-			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetFont("Fonts\\FRIZQT__.TTF", 12)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\FiraMono-Medium.ttf", textSizeMonospace)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetJustifyH("LEFT")
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetMaxLetters(99999)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:EnableMouse(true)
-			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnEnter", function(self) print('focus up') end)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetText(v)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnEscapePressed", function(self) uiFrame:Hide() end)
-			--editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnTabPressed", function(self) uiFrame:Hide() end)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:SetScript("OnTextChanged", function(self) auraEditorSetPoints(auraName, parent) end)
-			editorFieldExtraY = editorFieldExtraY + -math.floor(string.len(v)/85)*extraLineGap
+			editorFrames[auraName].text[k].input = CreateFrame("EditBox", auraName.."EditorFrameEditbox"..k, parent)
+			editorFrames[auraName].text[k].input:SetPoint("TOPLEFT", editorFrames[auraName].text[k], "TOPLEFT", 150, 0)
+			editorFrames[auraName].text[k].input:SetAutoFocus(false)
+			editorFrames[auraName].text[k].input:SetWidth(editBoxWidth)
+			editorFrames[auraName].text[k].input:SetHeight(30)
+			editorFrames[auraName].text[k].input:SetMultiLine(true)
+			--editorFrames[auraName].text[k].input:SetFont("Fonts\\FRIZQT__.TTF", 12)
+			editorFrames[auraName].text[k].input:SetFont("Interface\\AddOns\\StrongAuras\\fonts\\FiraMono-Medium.ttf", textSizeMonospace)
+			editorFrames[auraName].text[k].input:SetJustifyH("LEFT")
+			editorFrames[auraName].text[k].input:SetMaxLetters(99999)
+			editorFrames[auraName].text[k].input:EnableMouse(true)
+			--editorFrames[auraName].text[k].input:SetScript("OnEnter", function(self) print('focus up') end)
+			editorFrames[auraName].text[k].input:SetText(v)
+			editorFrames[auraName].text[k].input:SetScript("OnEscapePressed", function(self) uiFrame:Hide() end)
+			--editorFrames[auraName].text[k].input:SetScript("OnTabPressed", function(self) uiFrame:Hide() end)
+			editorFrames[auraName].text[k].input:SetScript("OnTextChanged", function(self) auraEditorSetPoints(auraName, parent) end)
+			editorFieldExtraY = lineCountForEditBox(editorFrames[auraName].text[k].input)*extraLineGap
 			--editorFieldExtraY = 0
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop = CreateFrame("Frame", auraName.."EditorBackdrop"..editorFrames[auraName].fieldCount, editorFrames[auraName].text[editorFrames[auraName].fieldCount].input)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetWidth(100)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetHeight(20)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetPoint("TOPLEFT", editorFrames[auraName].text[editorFrames[auraName].fieldCount].input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetPoint("BOTTOMRIGHT", editorFrames[auraName].text[editorFrames[auraName].fieldCount].input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetFrameLevel(editorFrames[auraName].text[editorFrames[auraName].fieldCount].input:GetFrameLevel()-1)
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetBackdrop({bgFile = 'Interface/Buttons/WHITE8x8', 
+			editorFrames[auraName].text[k].input.backdrop = CreateFrame("Frame", auraName.."EditorBackdrop"..k, editorFrames[auraName].text[k].input)
+			editorFrames[auraName].text[k].input.backdrop:SetWidth(100)
+			editorFrames[auraName].text[k].input.backdrop:SetHeight(20)
+			editorFrames[auraName].text[k].input.backdrop:SetPoint("TOPLEFT", editorFrames[auraName].text[k].input, "TOPLEFT", -borderWidthTextField, borderWidthTextField)
+			editorFrames[auraName].text[k].input.backdrop:SetPoint("BOTTOMRIGHT", editorFrames[auraName].text[k].input, "BOTTOMRIGHT", borderWidthTextField, -borderWidthTextField)
+			editorFrames[auraName].text[k].input.backdrop:SetFrameLevel(editorFrames[auraName].text[k].input:GetFrameLevel()-1)
+			editorFrames[auraName].text[k].input.backdrop:SetBackdrop({bgFile = 'Interface/Buttons/WHITE8x8', 
 				edgeFile = "Interface/Tooltips/UI-Tooltip-Border", 
 				edgeSize = 14, 
 				insets = { left = 0, right = 0, top = 0, bottom = 0 }});
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetBackdropColor(0, 0, 0, 0.0);
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:SetBackdropBorderColor(0.3, 0.3, 0.3, 1.0);
-			editorFrames[auraName].text[editorFrames[auraName].fieldCount].input.backdrop:EnableMouse(false)
+			editorFrames[auraName].text[k].input.backdrop:SetBackdropColor(0, 0, 0, 0.0);
+			editorFrames[auraName].text[k].input.backdrop:SetBackdropBorderColor(0.3, 0.3, 0.3, 1.0);
+			editorFrames[auraName].text[k].input.backdrop:EnableMouse(false)
 		end
 	end
 	
@@ -808,16 +859,24 @@ local function createAuraEditor(auraName, parent)
 	for k,v in StrongAuras_GS["aura"][auraName] do
 		keyCounter = keyCounter + 1
 		if editorFrames[auraName] ~= nil and editorFrames[auraName].text ~= nil then
-			editorFrames[auraName].text[keyCounter].label:SetText(k)
-			editorFrames[auraName].text[keyCounter].input:SetText(v)
+			if editorFrames[auraName].text[k] ~= nil then
+				editorFrames[auraName].text[k].label:SetText(k)
+				editorFrames[auraName].text[k].input:SetText(v)
+			end
 		end
 	end
 	
-	if editorFrames[auraName].text ~= nil then
-		for i=1,editorFrames[auraName].fieldCount do
-			editorFrames[auraName].text[i]:Show()
-			editorFrames[auraName].text[i].label:Show()
-			editorFrames[auraName].text[i].input:Show()
+	if editorFrames[auraName].text.title ~= nil then
+		editorFrames[auraName].text.title:Show()
+	end
+	
+	for k,v in StrongAuras_GS["aura"][auraName] do
+		if editorFrames[auraName] ~= nil and editorFrames[auraName].text ~= nil then
+			if editorFrames[auraName].text[k] ~= nil then
+				editorFrames[auraName].text[k]:Show()
+				editorFrames[auraName].text[k].label:Show()
+				editorFrames[auraName].text[k].input:Show()
+			end
 		end
 	end
 	
@@ -828,18 +887,19 @@ local function createAuraEditor(auraName, parent)
 				if editorFrames[auraName].text == nil then
 					editorFrames[auraName].text = {}
 				end
-				pointEditorFieldCount = pointEditorFieldCount + 1
-				local newText = editorFrames[auraName].text[pointEditorFieldCount].input:GetText()
+				local newText = editorFrames[auraName].text[k].input:GetText()
 				auraAssignIfDifferent(auraName, k, newText)
 				--StrongAuras_GS["aura"][auraName][k] = newText
 			end
 			OnAuraUpdate("frame");
 		end)
+	uiFrame.save:Show()
 	
 	uiFrame.share:SetScript("OnClick", function()
 			uiFrame:Hide()
 			editExistingAura(auraName)
 		end)
+	uiFrame.share:Show()
 		
 	uiFrame.delete:SetScript("OnClick", function()
 			if deleteCounter[auraName] == nil then
@@ -852,6 +912,7 @@ local function createAuraEditor(auraName, parent)
 				hideAllChildren(parent)
 			end
 		end)
+	uiFrame.delete:Show()
 	
 	return true
 end
@@ -1063,6 +1124,9 @@ local function showUi()
 		uiFrame.newAura:SetText("[New Aura]")
 		uiFrame.newAura:SetScript("OnClick", function()
 			createNewAuraMakerFrame(uiFrame.scrollchild2)
+			uiFrame.save:Hide()
+			uiFrame.delete:Hide()
+			uiFrame.share:Hide()
 		end)
 		
 		uiFrame.save = CreateFrame("Button", "StrongAurasFrameSave", uiFrame, "UIPanelButtonTemplate")
