@@ -57,31 +57,87 @@ local function conditionLogic(auraName, frame)
 	return true
 end
 
+local lastClass = nil
+local spellIdToNameTable = {}
+local didInit = false
+local allClasses = {"Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"}
+local function GetAllSpellIdsForClass(targetClass)
+	if spellIdToNameTable[targetClass] == nil then
+		spellIdToNameTable[targetClass] = {}
+		local i = 1
+		while true do
+			local spellName, spellRank, spellId = GetSpellName(i, BOOKTYPE_SPELL)
+			if not spellName then
+			   do break end
+			end
+
+			spellIdToNameTable[targetClass][spellId] = {}
+			spellIdToNameTable[targetClass][spellId].spell = spellName
+			spellIdToNameTable[targetClass][spellId].rank = spellRank
+
+			i = i + 1
+		end
+	end
+ end
+
+function GetNameForSpellId(spellId)
+	local targetClass = UnitClass("player")
+	if not didInit then
+		didInit = true
+		GetAllSpellIdsForClass(targetClass)
+	end
+	for k in spellIdToNameTable do
+		if spellIdToNameTable[targetClass][spellId] ~= nil then
+			return spellIdToNameTable[targetClass][spellId].spell, spellIdToNameTable[targetClass][spellId].rank
+		end
+	end
+ end
+
 function BuffDuration(name)
 	local buffId=GetSpellIdForName(name)
 	local wantedTexture = 0
-	for i=1,16 do
+	for i=0,16 do
 		local a,b,c=UnitBuff("player", i)
 		if c == buffId then
 			wantedTexture = a
 		end
 	end
-	for i=1,16 do
-		local a,b=GetPlayerBuff(i)
+	for i=0,31 do
+		local a,b,c=GetPlayerAuraDuration(i)
 		texture = GetPlayerBuffTexture(a)
-		if (wantedTexture == texture) then
-			return GetPlayerBuffTimeLeft(a)
+		if a ~= nil and a > 0 then
+			if GetSpellName("spellId:"..a)==name then
+				return b/1000
+			end
 		end
 	end
 	return 0
 end
 
+local rankTexts=nil
+local function populateRankTexts()
+	if rankTexts == nil then
+		rankTexts = {}
+		for i=1,9 do
+			rankTexts[i] = '(Rank '..i..')'
+		end
+	end
+end
+
 function HasBuff(unit, name)
-	local buffId=GetSpellIdForName(name)
-	for i=1,16 do
+	populateRankTexts()
+	local buffIds={}
+	for z=1,9 do 
+		buffIds[z]=GetSpellIdForName(name..rankTexts[z])
+	end
+	for i=1,32 do
 		local a,b,c=UnitBuff(unit, i)
-		if c == buffId then
-			return true
+		if c ~= nil then
+			for z=1,9 do
+				if c==buffIds[z] then
+					return true
+				end
+			end
 		end
 	end
 	return false
@@ -89,9 +145,9 @@ end
 
 function HasDebuff(unit, name)
 	local buffId=GetSpellIdForName(name)
-	for i=1,16 do
+	for i=1,32 do
 		local a,b,c=UnitDebuff(unit, i)
-		if c == buffId then
+		if c ~= nil and GetSpellName("spellId:"..c)==name then
 			return true
 		end
 	end
@@ -350,12 +406,25 @@ local function OnAuraUpdate(updateTrigger)
 	end
 end
 
+local eventHandlers = {}
+eventHandlers['CHAT_MSG_SPELL_SELF_BUFF'] = 'event_directHeal'
+eventHandlers['CHAT_MSG_SPELL_PERIODIC_SELF_BUFFS'] = 'event_periodicHeal'
+eventHandlers['CHAT_MSG_SPELL_PERIODIC_PARTY_BUFFS'] = 'event_periodicHeal'
+eventHandlers['CHAT_MSG_SPELL_PERIODIC_FRIENDLYPLAYER_BUFFS'] = 'event_periodicHeal'
+eventHandlers['CHAT_MSG_SPELL_PERIODIC_HOSTILEPLAYER_BUFFS'] = 'event_periodicHeal'
+eventHandlers['AURA_CAST_ON_SELF'] = 'event_auraCast'
+eventHandlers['AURA_CAST_ON_OTHER'] = 'event_auraCast'
+eventHandlers['CHAT_MSG_SPELL_SELF_DAMAGE'] = 'event_damageSpell'
+eventHandlers['UNIT_MANA'] = 'event_unitMana'
+
 function StrongAuras_OnLoad()
 	this:RegisterEvent("ADDON_LOADED")
 	this:RegisterEvent("PLAYER_REGEN_ENABLED")
-	this:RegisterEvent("UNIT_MANA")
-	this:RegisterEvent("UNIT_MANA_UPDATE")
-	this:RegisterEvent("UNIT_POWER_UPDATE")
+	for k,v in eventHandlers do
+		this:RegisterEvent(k)
+	end
+	--this:RegisterEvent("UNIT_MANA")
+	--this:RegisterEvent("CHAT_MSG_SPELL_SELF_DAMAGE")
 	--this:RegisterEvent("PLAYER_REGEN_DISABLED")
 	--this:RegisterEvent("UNIT_INVENTORY_CHANGED")
 	--this:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
@@ -365,6 +434,54 @@ function StrongAuras_OnLoad()
 	--this:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_SELF_BUFFS")
 	--this:RegisterEvent("CHAT_MSG_SPELL_AURA_GONE_SELF")
 	--this:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_SELF_DAMAGE")
+end
+
+function getArgsForPeriodicHeal(arg1)
+	local eventArg1,eventArg2,eventArg3
+	if string.find(arg1, "from") then
+		if string.find(arg1, "gains") then
+			eventArg1,eventArg3,_,eventArg2=string.match(arg1, "(%a+) gains (%d+) (%a+) from (%a+)'s (%a+).")
+		else
+			eventArg1,eventArg3,_,eventArg2=string.match(arg1, "(%a+) gain (%d+) (%a+) from (%a+).")
+		end
+	else
+		if string.find(arg1, "gains") then
+			eventArg1,eventArg2=string.match(arg1, "(%a+) gains (%a+).")
+		else
+			eventArg1,eventArg2=string.match(arg1, "(%a+) gain (%a+).")
+		end
+	end
+	--event_periodicHeal: eventArg1 = spell target, eventArg2 = spell name, eventArg3 = value
+	if eventArg1 ~= nil then
+		if eventArg1 == "You" then
+			eventArg1=UnitName('player')
+		end
+	end
+	
+	return eventArg1,eventArg2,eventArg3
+end
+
+function getArgsForAuraCast(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9)
+	--print(arg1..' '..arg2..' '..arg3..' '..arg4..' '..arg5..' '..arg6..' '..arg7..' '..arg8..' '..arg9..' ')
+	local spellId = arg1
+	local casterGuid = arg2
+	local targetGuid = arg3
+	local effect = arg4
+	local effectAuraName = arg5
+	local effectAmplitude = arg6
+	local effectMiscValue = arg7
+	local durationMs = arg8
+	local auraCapStatus = arg9
+	--eventArg1=spell target, eventArg2 = spell name, eventArg3 = value, eventArg4 = caster, eventArg5 = durationSec
+	local targetName = nil
+	local casterName = nil
+	if targetGuid ~= nil then
+		targetName = UnitName(targetGuid)
+	end
+	if casterGuid ~= nil then
+		casterName = UnitName(casterGuid)
+	end
+	return targetName, GetNameForSpellId(spellId), effectAmplitude, casterName, durationMs/1000.0
 end
 
 function StrongAuras_OnEvent()
@@ -381,22 +498,42 @@ function StrongAuras_OnEvent()
 		end
 			OnAuraUpdate("frame")
 		end
-	elseif event == "UNIT_MANA" then
-		if StrongAuras_GS ~= nil and StrongAuras_GS["aura"] ~= nil then
-			for a in StrongAuras_GS["aura"] do
-				if arg1=="player" and StrongAuras_GS["aura"][a]["event_unitMana"] ~= nil and StrongAuras_GS["aura"][a]["event_unitMana"] ~= "nil" then
-					local unitManaFn = loadstring(StrongAuras_GS["aura"][a]["event_unitMana"])
-					unitManaFn()
-				end
-				if arg1=="player" and StrongAuras_GS["aura"][a]["trigger"] ~= nil and StrongAuras_GS["aura"][a]["trigger"] == "mana" then
-					OnAuraUpdate("mana");
+	else
+		for k,v in eventHandlers do
+			if k == event then
+				if StrongAuras_GS ~= nil and StrongAuras_GS["aura"] ~= nil then
+					if v ~= nil and v ~= "event_unitMana" then
+						--print(v)
+					end
+					if v ~= "event_unitMana" and arg1 ~= nil then
+						--print(arg1)
+					end
+					if arg2 ~= nil then
+						--print(arg2)
+					end
+					
+					for a in StrongAuras_GS["aura"] do
+						if (v~="event_unitMana" or (v=="event_unitMana" and arg1=="player")) and StrongAuras_GS["aura"][a][v] ~= nil and StrongAuras_GS["aura"][a][v] ~= "nil" and string.len(StrongAuras_GS["aura"][a][v]) > 0 then
+							eventArg1,eventArg2,eventArg3,eventArg4,eventArg5 = nil
+							
+							if v=="event_periodicHeal" then
+								eventArg1,eventArg2,eventArg3=getArgsForPeriodicHeal(arg1)
+							end
+							
+							if v=="event_auraCast" then
+								eventArg1,eventArg2,eventArg3,eventArg4,eventArg5=getArgsForAuraCast(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9)
+							end
+							
+							local eventFn = loadstring(StrongAuras_GS["aura"][a][v])
+							eventFn(eventArg1,eventArg2)
+						end
+						if arg1=="player" and StrongAuras_GS["aura"][a]["trigger"] ~= nil and StrongAuras_GS["aura"][a]["trigger"] == v then
+							OnAuraUpdate(v);
+						end
+					end
 				end
 			end
 		end
-	elseif event == "UNIT_MANA_UPDATE" then
-		print('UNIT_MANA_UPDATE')
-	elseif event == "UNIT_POWER_UPDATE" then
-		print('UNIT_POWER_UPDATE')
 	end
 end
 
@@ -480,6 +617,9 @@ local function assignDefaultValues(auraName, auraType)
 	auraAssignIfNil(auraName, "onload", "")
 	auraAssignIfNil(auraName, "scale", "1")
 	auraAssignIfNil(auraName, "framelevel", "1")
+	for k,v in eventHandlers do
+		auraAssignIfNil(auraName, v, "")
+	end
 	if auraType == "progress" then
 		auraAssignIfNil(auraName, "w", "100")
 		auraAssignIfNil(auraName, "h", "20")
@@ -509,7 +649,11 @@ local function assignDefaultValues(auraName, auraType)
 end
 
 local function removeNewlines(value)
-	return string.gsub(value, "[\r\n]+", " ")
+	return string.gsub(value, "[\r\n]+", "\\n")
+end
+
+local function addNewlines(value)
+	return string.gsub(value, "\\n", "\n")
 end
 
 local editFrame
@@ -602,7 +746,7 @@ local function SpawnEditFrame(auraName)
 						local key = string.sub(line, 1, equalIdx-1)
 						local value = string.sub(line, equalIdx+1, string.len(line))
 						if key ~= nil and value ~= nil then
-							local isDifferent = auraAssignIfDifferentOrBlank(auraName, key, value)
+							local isDifferent = auraAssignIfDifferentOrBlank(auraName, key, addNewlines(value))
 							
 							if isDifferent then
 								diffCount = diffCount + 1
@@ -913,6 +1057,8 @@ local function createAuraEditor(auraName, parent)
 			end
 		end)
 	uiFrame.delete:Show()
+	
+	parent:GetParent():UpdateScrollChildRect()
 	
 	return true
 end
