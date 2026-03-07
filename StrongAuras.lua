@@ -106,7 +106,7 @@ function BuffDuration(name)
 		local a,b,c=GetPlayerAuraDuration(i)
 		texture = GetPlayerBuffTexture(a)
 		if a ~= nil and a > 0 then
-			if GetSpellName("spellId:"..a)==name then
+			if GetNameForSpellId(a)==name then
 				return b/1000
 			end
 		end
