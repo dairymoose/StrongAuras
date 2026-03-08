@@ -95,18 +95,11 @@ function GetNameForSpellId(spellId)
 
 function BuffDuration(name)
 	local buffId=GetSpellIdForName(name)
-	local wantedTexture = 0
-	for i=0,16 do
-		local a,b,c=UnitBuff("player", i)
-		if c == buffId then
-			wantedTexture = a
-		end
-	end
-	for i=0,31 do
+	for i=0,32 do
 		local a,b,c=GetPlayerAuraDuration(i)
 		texture = GetPlayerBuffTexture(a)
 		if a ~= nil and a > 0 then
-			if GetNameForSpellId(a)==name then
+			if GetNameForSpellId(a)==name or buffId==a then
 				return b/1000
 			end
 		end
