@@ -557,8 +557,16 @@ local function printAllAuras()
 	end
 end
 
+local function partialString(str, cutoff)
+	if string.len(str) <= cutoff then
+		return str
+	else
+		return string.sub(str, 1, cutoff)
+	end
+end
+
 local function auraAssign(auraName, key, value)
-	print(auraName..": set "..key.."="..value)
+	print(auraName..": set "..key.."="..partialString(value, 60))
 	if value=="nil" then
 		StrongAuras_GS["aura"][auraName][key] = nil
 	else
@@ -579,7 +587,7 @@ local function auraAssignIfDifferent(auraName, key, value)
 	if StrongAuras_GS["aura"][auraName][key] ~= nil then
 		local existing = StrongAuras_GS["aura"][auraName][key]
 		if value ~= existing then
-			print('Changing old value from: '..key.."="..existing)
+			print('Changing old value from: '..key.."="..partialString(existing, 60))
 			auraAssign(auraName, key, value)
 			return true
 		end
