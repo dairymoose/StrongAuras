@@ -696,7 +696,7 @@ local function assignDefaultValues(auraName, auraType)
 		auraAssignIfNil(auraName, "colorfn", 'return 1,1,1,1')
 		auraAssignIfNil(auraName, "glowfn", 'return false')
 		auraAssignIfNil(auraName, "texturefn", 'return "Interface/Icons/Ability_Warrior_BattleShout"')
-		auraAssignIfNil(auraName, "textfn", 'return ""')
+		auraAssignIfNil(auraName, "textfn", "return ''")
 		auraAssignIfNil(auraName, "fontsize", '12')
 	end
 end
