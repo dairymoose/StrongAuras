@@ -222,6 +222,15 @@ local function OnAuraUpdate(updateTrigger)
 						auraFrames[auraName].frame.progress.spark.texture:SetVertexColor(1, 1, 1, 1)
 						auraFrames[auraName].frame.progress.spark.texture:SetAllPoints()
 						
+						auraFrames[auraName].frame.progress.text = auraFrames[auraName].frame.progress:CreateFontString("Status", "DIALOG", "GameFontNormal")
+						auraFrames[auraName].frame.progress.text:SetPoint("CENTER", auraFrames[auraName].frame.progress, "CENTER", 0, 0)
+						local fz = StrongAuras_GS["aura"][auraName]["fontsize"]
+						if fz ~= nil then
+							fz = tonumber(fz)
+						end
+						auraFrames[auraName].frame.progress.text:SetFont(STANDARD_TEXT_FONT, fz or 12, "OUTLINE")
+						auraFrames[auraName].frame.progress.text:SetTextColor(1, 1, 1, 1)
+						
 						
 						auraFrames[auraName].frame.progress.updater = function()
 									local c = conditionLogic(auraName, auraFrames[auraName].frame.progress)
@@ -247,6 +256,20 @@ local function OnAuraUpdate(updateTrigger)
 									local valueFn = loadstring(StrongAuras_GS["aura"][auraName]["valuefn"])
 									
 									applyCommon(auraName, auraFrames[auraName].frame.progress)
+									
+									local fz = StrongAuras_GS["aura"][auraName]["fontsize"]
+									if fz ~= nil then
+										fz = tonumber(fz)
+									end
+									auraFrames[auraName].frame.progress.text:SetFont(STANDARD_TEXT_FONT, fz or 12, "OUTLINE")
+									
+									if StrongAuras_GS["aura"][auraName]["textfn"] ~= nil then
+										local textFn = loadstring(StrongAuras_GS["aura"][auraName]["textfn"])
+										if textFn ~= nil then
+											local resolvedTextFn = textFn()
+											auraFrames[auraName].frame.progress.text:SetText(resolvedTextFn)
+										end
+									end
 									
 									if minFn ~= nil and maxFn ~= nil and valueFn ~= nil then
 										local resolvedMin = minFn()
@@ -292,11 +315,6 @@ local function OnAuraUpdate(updateTrigger)
 					if auraFrames[auraName].frame.text == nil then
 						auraFrames[auraName].frame.text = auraFrames[auraName].frame:CreateFontString("Status", "DIALOG", "GameFontNormal")
 						auraFrames[auraName].frame.text:SetPoint("CENTER", auraFrames[auraName].frame, "CENTER", 0, 0)
-						local fz = StrongAuras_GS["aura"][auraName]["fontsize"]
-						if fz ~= nil then
-							fz = tonumber(fz)
-						end
-						auraFrames[auraName].frame.text:SetFont(STANDARD_TEXT_FONT, fz or 12, "OUTLINE")
 						auraFrames[auraName].frame.text:SetTextColor(1, 1, 1, 1)
 						auraFrames[auraName].frame.text.updater = function()
 									local c = conditionLogic(auraName, auraFrames[auraName].frame.text)
@@ -305,6 +323,12 @@ local function OnAuraUpdate(updateTrigger)
 									end
 									
 									applyCommon(auraName, auraFrames[auraName].frame.text)
+									
+									local fz = StrongAuras_GS["aura"][auraName]["fontsize"]
+									if fz ~= nil then
+										fz = tonumber(fz)
+									end
+									auraFrames[auraName].frame.text:SetFont(STANDARD_TEXT_FONT, fz or 12, "OUTLINE")
 									
 									if StrongAuras_GS["aura"][auraName]["textfn"] ~= nil then
 										local textFn = loadstring(StrongAuras_GS["aura"][auraName]["textfn"])
@@ -327,6 +351,16 @@ local function OnAuraUpdate(updateTrigger)
 						auraFrames[auraName].frame.icon = CreateFrame("Frame", a.."Icon", auraFrames[auraName].frame)
 						auraFrames[auraName].frame.icon:SetPoint("CENTER", auraFrames[auraName].frame, "CENTER", 0, 0)
 						auraFrames[auraName].frame.icon.texture = auraFrames[auraName].frame.icon:CreateTexture(nil, "BACKGROUND")
+						
+						auraFrames[auraName].frame.icon.text = auraFrames[auraName].frame.icon:CreateFontString("Status", "DIALOG", "GameFontNormal")
+						auraFrames[auraName].frame.icon.text:SetPoint("CENTER", auraFrames[auraName].frame.icon, "CENTER", 0, 0)
+						local fz = StrongAuras_GS["aura"][auraName]["fontsize"]
+						if fz ~= nil then
+							fz = tonumber(fz)
+						end
+						auraFrames[auraName].frame.icon.text:SetFont(STANDARD_TEXT_FONT, fz or 12, "OUTLINE")
+						auraFrames[auraName].frame.icon.text:SetTextColor(1, 1, 1, 1)
+						
 						auraFrames[auraName].frame.icon.updater = function()
 									local c = conditionLogic(auraName, auraFrames[auraName].frame.icon)
 									if not c then
@@ -345,6 +379,20 @@ local function OnAuraUpdate(updateTrigger)
 										auraFrames[auraName].frame.icon.texture:SetAllPoints()
 										
 										applyCommon(auraName, auraFrames[auraName].frame.icon)
+										
+										local fz = StrongAuras_GS["aura"][auraName]["fontsize"]
+										if fz ~= nil then
+											fz = tonumber(fz)
+										end
+										auraFrames[auraName].frame.icon.text:SetFont(STANDARD_TEXT_FONT, fz or 12, "OUTLINE")
+										
+										if StrongAuras_GS["aura"][auraName]["textfn"] ~= nil then
+											local textFn = loadstring(StrongAuras_GS["aura"][auraName]["textfn"])
+											if textFn ~= nil then
+												local resolvedTextFn = textFn()
+												auraFrames[auraName].frame.icon.text:SetText(resolvedTextFn)
+											end
+										end
 										
 										if resolvedGlow then
 											auraFrames[auraName].frame.icon:SetBackdrop({
@@ -633,6 +681,8 @@ local function assignDefaultValues(auraName, auraType)
 		auraAssignIfNil(auraName, "minfn", 'return 0')
 		auraAssignIfNil(auraName, "maxfn", 'return 1')
 		auraAssignIfNil(auraName, "valuefn", 'return UnitHealth("target")/UnitHealthMax("target")')
+		auraAssignIfNil(auraName, "textfn", "return ''")
+		auraAssignIfNil(auraName, "fontsize", '12')
 	end
 	if auraType == "text" then
 		auraAssignIfNil(auraName, "x", 0)
@@ -646,6 +696,8 @@ local function assignDefaultValues(auraName, auraType)
 		auraAssignIfNil(auraName, "colorfn", 'return 1,1,1,1')
 		auraAssignIfNil(auraName, "glowfn", 'return false')
 		auraAssignIfNil(auraName, "texturefn", 'return "Interface/Icons/Ability_Warrior_BattleShout"')
+		auraAssignIfNil(auraName, "textfn", 'return ""')
+		auraAssignIfNil(auraName, "fontsize", '12')
 	end
 end
 
@@ -1028,12 +1080,15 @@ local function createAuraEditor(auraName, parent)
 	uiFrame.save:SetScript("OnClick", function()
 			local pointEditorFieldCount = 0
 			local pointEditorFieldExtraY = 0
+			assignDefaultValues(auraName, StrongAuras_GS["aura"][auraName]["type"])
 			for k,v in StrongAuras_GS["aura"][auraName] do
 				if editorFrames[auraName].text == nil then
 					editorFrames[auraName].text = {}
 				end
-				local newText = editorFrames[auraName].text[k].input:GetText()
-				auraAssignIfDifferent(auraName, k, newText)
+				if editorFrames[auraName].text[k] ~= nil then
+					local newText = editorFrames[auraName].text[k].input:GetText()
+					auraAssignIfDifferent(auraName, k, newText)
+				end
 				--StrongAuras_GS["aura"][auraName][k] = newText
 			end
 			OnAuraUpdate("frame");
