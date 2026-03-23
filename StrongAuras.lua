@@ -1,4 +1,6 @@
 
+_G = getfenv()
+
 --------------------------------------------------------------------------------
 function MakeMovable(frame)
     frame:SetMovable(true);
@@ -782,7 +784,19 @@ local function SpawnEditFrame(auraName)
 		editFrame.confirm:SetWidth(50)
 		editFrame.confirm:SetHeight(20)
 		editFrame.confirm:SetText("Confirm")
-		editFrame.confirm:SetScript("OnClick", function()
+		--editFrame.confirm:RegisterForClicks("AnyDown", "AnyUp")
+		
+		editFrame.cancel = CreateFrame("Button", auraName.."EditFrameCancel", editFrame, "UIPanelButtonTemplate")
+		editFrame.cancel:SetPoint("BOTTOM", editFrame, "BOTTOM", 25, 10)
+		editFrame.cancel:SetWidth(50)
+		editFrame.cancel:SetHeight(20)
+		editFrame.cancel:SetText("Cancel")
+		editFrame.cancel:SetScript("OnClick", function()
+			editFrame:Hide()
+		end)
+	end
+	
+	editFrame.confirm:SetScript("OnClick", function()
 			local edited = editFrame.text:GetText()
 			local lineSplit = SplitString(edited, "\n")
 			local diffCount = 0
@@ -811,17 +825,6 @@ local function SpawnEditFrame(auraName)
 			OnAuraUpdate("frame");
 			editFrame:Hide()
 		end)
-		--editFrame.confirm:RegisterForClicks("AnyDown", "AnyUp")
-		
-		editFrame.cancel = CreateFrame("Button", auraName.."EditFrameCancel", editFrame, "UIPanelButtonTemplate")
-		editFrame.cancel:SetPoint("BOTTOM", editFrame, "BOTTOM", 25, 10)
-		editFrame.cancel:SetWidth(50)
-		editFrame.cancel:SetHeight(20)
-		editFrame.cancel:SetText("Cancel")
-		editFrame.cancel:SetScript("OnClick", function()
-			editFrame:Hide()
-		end)
-	end
 	
 	local editText = ""
 	editText = editText.."-- Aura "..auraName.."\n"
@@ -928,8 +931,9 @@ end
 
 local function hideAllChildren(parent)
 	if parent:GetChildren() ~= nil then
-		for i=1, select("#", parent:GetChildren()) do
-			local childFrame = select(i, parent:GetChildren())
+		local childrenTable = {parent:GetChildren()}
+		for i,child in ipairs(childrenTable) do
+			local childFrame = child;
 			childFrame:Hide()
 		end
 	end
